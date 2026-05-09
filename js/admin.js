@@ -91,6 +91,12 @@ function renderBookingsTable(bookings, compact) {
     const phone = String(booking.Phone || '').replace(/\D/g, '');
     const whatsapp = phone ? '<a class="table-link" href="https://wa.me/' + phone + '" target="_blank">WhatsApp</a>' : '-';
     const statusClass = 'status-' + String(booking.Status || 'New').toLowerCase();
+    const actions = compact ? '' : '<td><div class="row-actions">' +
+      '<button onclick="changeBookingStatus(\'' + safe(booking.BookingID) + '\', \'Confirmed\')">Confirm</button>' +
+      '<button onclick="changeBookingStatus(\'' + safe(booking.BookingID) + '\', \'Cancelled\')">Cancel</button>' +
+      '<button onclick="changeBookingStatus(\'' + safe(booking.BookingID) + '\', \'CheckedIn\')">Check In</button>' +
+      '<button onclick="changeBookingStatus(\'' + safe(booking.BookingID) + '\', \'CheckedOut\')">Check Out</button>' +
+    '</div></td>';
 
     return '<tr>' +
       '<td><strong>' + safe(booking.BookingID) + '</strong></td>' +
@@ -100,13 +106,27 @@ function renderBookingsTable(bookings, compact) {
       '<td>' + safe(booking.Guests) + '</td>' +
       '<td><span class="status-pill ' + statusClass + '">' + safe(booking.Status || 'New') + '</span></td>' +
       (compact ? '' : '<td>' + whatsapp + '</td>') +
+      actions +
     '</tr>';
   }).join('');
 
   return '<div class="table-wrap"><table class="admin-table"><thead><tr>' +
     '<th>ID</th><th>სტუმარი</th><th>ტიპი</th><th>თარიღები</th><th>სტუმრები</th><th>სტატუსი</th>' +
-    (compact ? '' : '<th>კავშირი</th>') +
+    (compact ? '' : '<th>კავშირი</th><th>მოქმედება</th>') +
     '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+}
+
+async function changeBookingStatus(bookingId, status) {
+  const result = await apiPost('updateBookingStatus', {
+    bookingId: bookingId,
+    status: status
+  });
+
+  if (result.success) {
+    loadBookings();
+  } else {
+    alert(result.error || 'სტატუსის შეცვლა ვერ მოხერხდა');
+  }
 }
 
 async function loadRooms() {
