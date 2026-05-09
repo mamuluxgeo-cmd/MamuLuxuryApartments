@@ -6,39 +6,107 @@
   <title>Mamu Luxury Apartments</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body data-theme="night">
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+
   <header>
     <nav>
-      <div class="brand" id="siteTitle">Mamu Luxury Apartments</div>
-      <button class="theme-toggle" onclick="toggleTheme()">◐</button>
+      <a class="brand" href="#top" id="siteTitle">Mamu Luxury Apartments</a>
+      <div class="nav-links">
+        <a href="#rooms">ნომრები</a>
+        <a href="#gallery">გალერეა</a>
+        <a href="#videos">ვიდეო</a>
+        <a href="#booking">დაჯავშნა</a>
+      </div>
+      <button class="theme-toggle" onclick="toggleTheme()" aria-label="Theme">◐</button>
     </nav>
   </header>
 
-  <section class="hero">
-    <div class="hero-inner">
-      <div class="eyebrow">Luxury Liquid Glass Experience</div>
-      <h1 id="heroTitle">Mamu Luxury Apartments</h1>
-      <p id="heroSubtitle">პრემიუმ აპარტამენტები ბათუმში</p>
-      <div class="actions">
-        <a href="#rooms" class="liquid-btn">აპარტამენტების ნახვა</a>
-        <a href="#contact" class="ghost-btn">დაჯავშნა</a>
+  <main id="top">
+    <section class="hero">
+      <div class="hero-inner reveal">
+        <div class="eyebrow">Luxury Liquid Glass Experience</div>
+        <h1 id="heroTitle">Mamu Luxury Apartments</h1>
+        <p id="heroSubtitle">პრემიუმ აპარტამენტები ბათუმში</p>
+        <div class="actions">
+          <a href="#rooms" class="liquid-btn">აპარტამენტების ნახვა</a>
+          <a href="#booking" class="ghost-btn">დაჯავშნა</a>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section class="section" id="rooms">
-    <h2 class="section-title">აპარტამენტების ტიპები</h2>
-    <div class="grid" id="roomTypes"></div>
-  </section>
+    <section class="section reveal" id="rooms">
+      <div class="section-head">
+        <span class="eyebrow">20 Rooms / 5 Types</span>
+        <h2 class="section-title">აპარტამენტების ტიპები</h2>
+      </div>
+      <div class="grid" id="roomTypes"></div>
+    </section>
 
-  <section class="section" id="contact">
-    <h2 class="section-title">დაჯავშნა</h2>
-    <p>სრული დაჯავშნის ფორმა დაემატება შემდეგ ეტაპზე.</p>
-  </section>
+    <section class="section reveal" id="booking">
+      <div class="booking-shell">
+        <div>
+          <span class="eyebrow">Booking Request</span>
+          <h2 class="section-title">დაჯავშნის მოთხოვნა</h2>
+          <p class="muted">აირჩიე ნომრის ტიპი და თარიღები. სისტემა შეამოწმებს ხელმისაწვდომობას და მოთხოვნას Google Sheets-ში ჩაწერს.</p>
+        </div>
+        <form id="bookingForm" class="lux-form">
+          <select name="roomTypeId" id="bookingRoomType" required>
+            <option value="">აირჩიე ნომრის ტიპი</option>
+          </select>
+          <div class="form-row">
+            <input type="date" name="checkin" required />
+            <input type="date" name="checkout" required />
+          </div>
+          <div class="form-row">
+            <input type="text" name="name" placeholder="სახელი და გვარი" required />
+            <input type="tel" name="phone" placeholder="ტელეფონი" required />
+          </div>
+          <div class="form-row">
+            <input type="email" name="email" placeholder="ელფოსტა სურვილისამებრ" />
+            <input type="number" name="guests" min="1" placeholder="სტუმრები" required />
+          </div>
+          <textarea name="message" placeholder="კომენტარი"></textarea>
+          <button class="liquid-btn" type="submit">მოთხოვნის გაგზავნა</button>
+          <p id="bookingStatus" class="status-text"></p>
+        </form>
+      </div>
+    </section>
 
+    <section class="section reveal" id="gallery">
+      <div class="section-head">
+        <span class="eyebrow">Gallery</span>
+        <h2 class="section-title">გალერეა</h2>
+      </div>
+      <div class="gallery-grid" id="galleryGrid"></div>
+    </section>
+
+    <section class="section reveal" id="videos">
+      <div class="section-head">
+        <span class="eyebrow">Video Tour</span>
+        <h2 class="section-title">ვიდეოები</h2>
+      </div>
+      <div class="video-grid" id="videoGrid"></div>
+    </section>
+
+    <section class="section reveal" id="contact">
+      <div class="contact-card">
+        <span class="eyebrow">Contact</span>
+        <h2 class="section-title">კონტაქტი</h2>
+        <div class="contact-list">
+          <a id="phoneLink" href="#">ტელეფონი</a>
+          <a id="mapLink" href="#" target="_blank">რუკაზე ნახვა</a>
+          <a id="whatsappLink" href="#" target="_blank">WhatsApp</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <a class="whatsapp-float" id="whatsappFloat" href="#" target="_blank">WhatsApp</a>
   <footer class="footer">© 2026 Mamu Luxury Apartments</footer>
 
   <script src="js/config.js"></script>
