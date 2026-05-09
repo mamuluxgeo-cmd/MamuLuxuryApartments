@@ -36,6 +36,21 @@ function safe(value) {
   });
 }
 
+function toIsoDate(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function addDays(date, days) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function overlaps(startA, endA, startB, endB) {
+  if (!startA || !endA || !startB || !endB) return false;
+  return new Date(startA) < new Date(endB) && new Date(startB) < new Date(endA);
+}
+
 async function login(username, password) {
   return apiPost('adminLogin', { username, password });
 }
@@ -199,7 +214,66 @@ async function loadRooms() {
 
 async function loadCalendar() {
   $('statsGrid').innerHTML = '';
-  $('mainPanel').innerHTML = '<h3>Calendar</h3><p>20 ნომრის კალენდარი დაემატება შემდეგ ნაბიჯებში.</p>';
+  const panel = $('mainPanel');
+  panel.textContent = 'კალენდარი იტვირთება...';
+
+  const startDate = new Date();
+  const endDate = addDays(startDate, 14);
+  const response = await apiGet('calendar', {
+    start: toIsoDate(startDate),
+    end: toIsoDate(endDate)
+  });
+
+  const rooms = response.rooms || [];
+  const bookings = response.bookings || [];
+  const blocks = response.blocks || [];
+  const dates = [];
+
+  for (let i = 0; i < 14; i++) {
+    dates.push(toIsoDate(addDays(startDate, i)));
+  }
+
+  panel.innerHTML =
+    '<div class="panel-title-row">' +
+      '<div><h3>14 დღის კალენდარი</h3><p>მწვანე თავისუფალია, ლურჯი ახალი მოთხოვნაა, წითელი დადასტურებულია, იასამნისფერი გარე ჯავშანი/ბლოკია.</p></div>' +
+    '</div>' +
+    renderCalendarGrid(rooms, bookings, blocks, dates);
+}
+
+function renderCalendarGrid(rooms, bookings, blocks, dates) {
+  const header = dates.map(function (date) {
+    const day = new Date(date);
+    return '<div class="cal-cell cal-head">' + (day.getMonth() + 1) + '/' + day.getDate() + '</div>';
+  }).join('');
+
+  const rows = rooms.map(function (room) {
+    const cells = dates.map(function (date) {
+      const nextDate = toIsoDate(addDays(new Date(date), 1));
+      const booking = bookings.find(function (item) {
+        return String(item.RoomID) === String(room.RoomID) && overlaps(date, nextDate, item.CheckIn, item.CheckOut);
+      });
+      const block = blocks.find(function (item) {
+        return String(item.RoomID) === String(room.RoomID) && overlaps(date, nextDate, item.StartDate, item.EndDate);
+      });
+
+      if (booking) {
+        const cls = String(booking.Status) === 'New' ? 'cal-new' : 'cal-booked';
+        return '<div class="cal-cell ' + cls + '" title="' + safe(booking.GuestName) + '">' + safe(booking.Status) + '</div>';
+      }
+
+      if (block) {
+        return '<div class="cal-cell cal-block" title="' + safe(block.Source) + '">Block</div>';
+      }
+
+      return '<div class="cal-cell cal-free">Free</div>';
+    }).join('');
+
+    return '<div class="cal-room"><strong>' + safe(room.RoomNumber) + '</strong><small>' + safe(room.TypeID) + '</small></div>' + cells;
+  }).join('');
+
+  return '<div class="calendar-wrap"><div class="calendar-grid" style="grid-template-columns:140px repeat(' + dates.length + ', minmax(92px, 1fr));">' +
+    '<div class="cal-cell cal-head sticky-room">Room</div>' + header + rows +
+    '</div></div>';
 }
 
 async function loadSettings() {
