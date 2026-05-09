@@ -86,6 +86,7 @@ function renderRoomTypes(items) {
     article.className = 'card';
 
     const image = item.MainImage || 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80';
+    const detailUrl = 'apartment.html?id=' + encodeURIComponent(item.TypeID);
 
     article.innerHTML =
       '<img src="' + safeText(image) + '" alt="' + safeText(item.Name) + '">' +
@@ -98,10 +99,19 @@ function renderRoomTypes(items) {
           '<span>🛁 ' + safeText(item.Bathrooms) + '</span>' +
         '</div>' +
         '<h4>₾' + safeText(item.Price) + '</h4>' +
+        '<div class="card-actions">' +
+          '<a class="ghost-btn small-btn" href="' + detailUrl + '">ვრცლად</a>' +
+          '<a class="liquid-btn small-btn" href="#booking" onclick="selectRoomType(\'' + safeText(item.TypeID) + '\')">დაჯავშნა</a>' +
+        '</div>' +
       '</div>';
 
     container.appendChild(article);
   });
+}
+
+function selectRoomType(typeId) {
+  const select = document.getElementById('bookingRoomType');
+  if (select) select.value = typeId;
 }
 
 function populateBookingRoomTypes(items) {
