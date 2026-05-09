@@ -333,7 +333,64 @@ function renderCalendarGrid(rooms, bookings, blocks, dates) {
 
 async function loadSettings() {
   $('statsGrid').innerHTML = '';
-  $('mainPanel').innerHTML = '<h3>Settings</h3><p>საიტის პარამეტრების რედაქტირება დაემატება შემდეგ ნაბიჯში.</p>';
+  const panel = $('mainPanel');
+  panel.textContent = 'პარამეტრები იტვირთება...';
+
+  const response = await apiGet('settings');
+  const settings = response.data || {};
+
+  panel.innerHTML =
+    '<div class="panel-title-row">' +
+      '<div><h3>Settings Management</h3><p>აქედან შეცვლი საიტის მთავარ ტექსტებს, კონტაქტებს და სოციალურ ლინკებს.</p></div>' +
+    '</div>' +
+    renderSettingsForm(settings);
+
+  bindSettingsForm();
+}
+
+function renderSettingsForm(settings) {
+  const fields = [
+    ['site_title', 'საიტის სახელი'],
+    ['hero_title', 'მთავარი სათაური'],
+    ['hero_subtitle', 'მთავარი ქვესათაური'],
+    ['phone', 'ტელეფონი'],
+    ['whatsapp', 'WhatsApp ნომერი'],
+    ['address', 'მისამართი'],
+    ['map_url', 'Google Maps ლინკი'],
+    ['facebook', 'Facebook'],
+    ['instagram', 'Instagram'],
+    ['tiktok', 'TikTok'],
+    ['currency', 'ვალუტა'],
+    ['main_hero_image', 'მთავარი ფონის ფოტო URL']
+  ];
+
+  const inputs = fields.map(function (field) {
+    const key = field[0];
+    const label = field[1];
+    return '<label><span>' + label + '</span><input name="' + key + '" value="' + safe(settings[key]) + '" /></label>';
+  }).join('');
+
+  return '<form class="settings-form" id="settingsForm">' + inputs + '<button type="submit">შენახვა</button><small id="settingsStatus"></small></form>';
+}
+
+function bindSettingsForm() {
+  const form = $('settingsForm');
+  if (!form) return;
+
+  form.addEventListener('submit', async function (event) {
+    event.preventDefault();
+    const status = $('settingsStatus');
+    status.textContent = 'ინახება...';
+
+    const data = Object.fromEntries(new FormData(form).entries());
+    const entries = Object.entries(data);
+
+    for (const [key, value] of entries) {
+      await apiPost('updateSetting', { key: key, value: value });
+    }
+
+    status.textContent = 'პარამეტრები შენახულია';
+  });
 }
 
 function loadView(view) {
