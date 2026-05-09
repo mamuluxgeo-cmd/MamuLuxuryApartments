@@ -219,14 +219,15 @@ async function loadCalendar() {
 
   const startDate = new Date();
   const endDate = addDays(startDate, 14);
-  const response = await apiGet('calendar', {
-    start: toIsoDate(startDate),
-    end: toIsoDate(endDate)
-  });
+  const [calendarRes, roomsRes] = await Promise.all([
+    apiGet('calendar', { start: toIsoDate(startDate), end: toIsoDate(endDate) }),
+    apiGet('rooms')
+  ]);
 
-  const rooms = response.rooms || [];
-  const bookings = response.bookings || [];
-  const blocks = response.blocks || [];
+  const rooms = calendarRes.rooms || roomsRes.data || [];
+  const bookings = calendarRes.bookings || [];
+  const blocks = calendarRes.blocks || [];
+  ADMIN_ROOMS = roomsRes.data || rooms;
   const dates = [];
 
   for (let i = 0; i < 14; i++) {
@@ -237,7 +238,61 @@ async function loadCalendar() {
     '<div class="panel-title-row">' +
       '<div><h3>14 დღის კალენდარი</h3><p>მწვანე თავისუფალია, ლურჯი ახალი მოთხოვნაა, წითელი დადასტურებულია, იასამნისფერი გარე ჯავშანი/ბლოკია.</p></div>' +
     '</div>' +
+    renderManualBlockForm() +
     renderCalendarGrid(rooms, bookings, blocks, dates);
+
+  bindManualBlockForm();
+}
+
+function renderManualBlockForm() {
+  const roomOptions = ADMIN_ROOMS.filter(function (room) {
+    return String(room.Status) === 'Active';
+  }).map(function (room) {
+    return '<option value="' + safe(room.RoomID) + '" data-type="' + safe(room.TypeID) + '">' + safe(room.RoomNumber) + ' / ' + safe(room.TypeID) + '</option>';
+  }).join('');
+
+  return '<form class="manual-block-form" id="manualBlockForm">' +
+    '<div><strong>Manual Block / External Booking</strong><p>Booking.com, Airbnb, ტელეფონი ან რემონტი — აქედან ხელით დაბლოკე ნომერი.</p></div>' +
+    '<select name="RoomID" required><option value="">აირჩიე ნომერი</option>' + roomOptions + '</select>' +
+    '<select name="Source" required><option value="Booking.com">Booking.com</option><option value="Airbnb">Airbnb</option><option value="WhatsApp">WhatsApp</option><option value="Phone">Phone</option><option value="Maintenance">Maintenance</option><option value="Owner">Owner</option><option value="Other">Other</option></select>' +
+    '<input type="date" name="StartDate" required />' +
+    '<input type="date" name="EndDate" required />' +
+    '<input type="text" name="GuestName" placeholder="სტუმარი / მიზეზი" />' +
+    '<input type="tel" name="Phone" placeholder="ტელეფონი" />' +
+    '<button type="submit">დაბლოკვა</button>' +
+    '<small id="manualBlockStatus"></small>' +
+  '</form>';
+}
+
+function bindManualBlockForm() {
+  const form = $('manualBlockForm');
+  if (!form) return;
+
+  form.addEventListener('submit', async function (event) {
+    event.preventDefault();
+    const status = $('manualBlockStatus');
+    status.textContent = 'ინახება...';
+
+    const data = Object.fromEntries(new FormData(form).entries());
+    const room = ADMIN_ROOMS.find(function (item) {
+      return String(item.RoomID) === String(data.RoomID);
+    });
+
+    data.RoomNumber = room ? room.RoomNumber : '';
+    data.RoomTypeID = room ? room.TypeID : '';
+    data.Status = 'Active';
+    data.Reason = data.GuestName || data.Source;
+
+    const result = await apiPost('createManualBlock', { data: data });
+
+    if (result.success) {
+      status.textContent = 'დაბლოკვა დამატებულია';
+      form.reset();
+      loadCalendar();
+    } else {
+      status.textContent = result.error || 'დაბლოკვა ვერ დაემატა';
+    }
+  });
 }
 
 function renderCalendarGrid(rooms, bookings, blocks, dates) {
