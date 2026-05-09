@@ -1,3 +1,5 @@
+let ADMIN_ROOMS = [];
+
 function $(id) {
   return document.getElementById(id);
 }
@@ -50,6 +52,8 @@ async function loadDashboard() {
 
   const bookings = bookingsRes.data || [];
   const rooms = roomsRes.data || [];
+  ADMIN_ROOMS = rooms;
+
   const newBookings = bookings.filter(function (booking) {
     return String(booking.Status || '') === 'New';
   }).length;
@@ -72,8 +76,13 @@ async function loadBookings() {
   panel.textContent = 'ჯავშნები იტვირთება...';
   stats.innerHTML = '';
 
-  const response = await apiGet('bookings');
-  const bookings = response.data || [];
+  const [bookingsRes, roomsRes] = await Promise.all([
+    apiGet('bookings'),
+    apiGet('rooms')
+  ]);
+
+  const bookings = bookingsRes.data || [];
+  ADMIN_ROOMS = roomsRes.data || [];
 
   panel.innerHTML =
     '<div class="panel-title-row">' +
@@ -91,8 +100,9 @@ function renderBookingsTable(bookings, compact) {
     const phone = String(booking.Phone || '').replace(/\D/g, '');
     const whatsapp = phone ? '<a class="table-link" href="https://wa.me/' + phone + '" target="_blank">WhatsApp</a>' : '-';
     const statusClass = 'status-' + String(booking.Status || 'New').toLowerCase();
+    const roomSelect = compact ? '' : renderRoomSelect(booking);
     const actions = compact ? '' : '<td><div class="row-actions">' +
-      '<button onclick="changeBookingStatus(\'' + safe(booking.BookingID) + '\', \'Confirmed\')">Confirm</button>' +
+      '<button onclick="assignRoom(\'' + safe(booking.BookingID) + '\', \'room-' + safe(booking.BookingID) + '\', \'Confirmed\')">Assign + Confirm</button>' +
       '<button onclick="changeBookingStatus(\'' + safe(booking.BookingID) + '\', \'Cancelled\')">Cancel</button>' +
       '<button onclick="changeBookingStatus(\'' + safe(booking.BookingID) + '\', \'CheckedIn\')">Check In</button>' +
       '<button onclick="changeBookingStatus(\'' + safe(booking.BookingID) + '\', \'CheckedOut\')">Check Out</button>' +
@@ -101,9 +111,10 @@ function renderBookingsTable(bookings, compact) {
     return '<tr>' +
       '<td><strong>' + safe(booking.BookingID) + '</strong></td>' +
       '<td>' + safe(booking.GuestName) + '<br><small>' + safe(booking.Phone) + '</small></td>' +
-      '<td>' + safe(booking.RoomTypeName) + '</td>' +
+      '<td>' + safe(booking.RoomTypeName) + '<br><small>' + safe(booking.RoomTypeID) + '</small></td>' +
       '<td>' + safe(booking.CheckIn) + '<br><small>' + safe(booking.CheckOut) + '</small></td>' +
       '<td>' + safe(booking.Guests) + '</td>' +
+      '<td>' + (booking.RoomNumber ? '<strong>' + safe(booking.RoomNumber) + '</strong>' : roomSelect) + '</td>' +
       '<td><span class="status-pill ' + statusClass + '">' + safe(booking.Status || 'New') + '</span></td>' +
       (compact ? '' : '<td>' + whatsapp + '</td>') +
       actions +
@@ -111,9 +122,61 @@ function renderBookingsTable(bookings, compact) {
   }).join('');
 
   return '<div class="table-wrap"><table class="admin-table"><thead><tr>' +
-    '<th>ID</th><th>სტუმარი</th><th>ტიპი</th><th>თარიღები</th><th>სტუმრები</th><th>სტატუსი</th>' +
+    '<th>ID</th><th>სტუმარი</th><th>ტიპი</th><th>თარიღები</th><th>სტუმრები</th><th>ნომერი</th><th>სტატუსი</th>' +
     (compact ? '' : '<th>კავშირი</th><th>მოქმედება</th>') +
     '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+}
+
+function renderRoomSelect(booking) {
+  const filteredRooms = ADMIN_ROOMS.filter(function (room) {
+    return String(room.TypeID) === String(booking.RoomTypeID) && String(room.Status) === 'Active';
+  });
+
+  if (!filteredRooms.length) {
+    return '<small>ამ ტიპის ნომერი ვერ მოიძებნა</small>';
+  }
+
+  const options = filteredRooms.map(function (room) {
+    return '<option value="' + safe(room.RoomID) + '">' + safe(room.RoomNumber) + ' / ' + safe(room.TypeID) + '</option>';
+  }).join('');
+
+  return '<select class="room-select" id="room-' + safe(booking.BookingID) + '"><option value="">აირჩიე ნომერი</option>' + options + '</select>';
+}
+
+async function assignRoom(bookingId, selectId, status) {
+  const select = document.getElementById(selectId);
+  if (!select || !select.value) {
+    alert('ჯერ აირჩიე ნომერი');
+    return;
+  }
+
+  const booking = await findBookingById(bookingId);
+  if (!booking) {
+    alert('ჯავშანი ვერ მოიძებნა');
+    return;
+  }
+
+  const result = await apiPost('assignRoomToBooking', {
+    bookingId: bookingId,
+    roomId: select.value,
+    checkin: booking.CheckIn,
+    checkout: booking.CheckOut,
+    status: status || 'Confirmed'
+  });
+
+  if (result.success) {
+    loadBookings();
+  } else {
+    alert(result.error || 'ნომრის მინიჭება ვერ მოხერხდა');
+  }
+}
+
+async function findBookingById(bookingId) {
+  const response = await apiGet('bookings');
+  const bookings = response.data || [];
+  return bookings.find(function (booking) {
+    return String(booking.BookingID) === String(bookingId);
+  });
 }
 
 async function changeBookingStatus(bookingId, status) {
