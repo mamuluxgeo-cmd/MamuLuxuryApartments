@@ -66,13 +66,18 @@
           <span class="eyebrow">Booking Request</span>
           <h2 class="section-title">ამ ნომრის დაჯავშნა</h2>
           <p class="muted">მოთხოვნა გაიგზავნება Google Sheets-ში და Admin Panel-ში გამოჩნდება ახალი ჯავშნის სახით.</p>
+          <div class="calendar-preview" id="availabilityBox">
+            <strong>ხელმისაწვდომობის შემოწმება</strong>
+            <span>აირჩიე თარიღები და შეამოწმე თავისუფალი ნომერი.</span>
+          </div>
         </div>
         <form id="detailBookingForm" class="lux-form">
           <input type="hidden" name="roomTypeId" id="detailRoomTypeId" />
-          <div class="form-row">
-            <input type="date" name="checkin" required />
-            <input type="date" name="checkout" required />
+          <div class="form-row calendar-row">
+            <label class="date-field">შესვლა<input type="date" name="checkin" id="detailCheckin" required /></label>
+            <label class="date-field">გასვლა<input type="date" name="checkout" id="detailCheckout" required /></label>
           </div>
+          <button class="ghost-btn" type="button" id="checkAvailabilityBtn">ხელმისაწვდომობის შემოწმება</button>
           <div class="form-row">
             <input type="text" name="name" placeholder="სახელი და გვარი" required />
             <input type="tel" name="phone" placeholder="ტელეფონი" required />
