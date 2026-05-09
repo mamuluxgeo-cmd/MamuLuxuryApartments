@@ -209,7 +209,92 @@ async function changeBookingStatus(bookingId, status) {
 
 async function loadRooms() {
   $('statsGrid').innerHTML = '';
-  $('mainPanel').innerHTML = '<h3>Rooms</h3><p>ნომრების მართვა დაემატება შემდეგ ნაბიჯში.</p>';
+  const panel = $('mainPanel');
+  panel.textContent = 'ნომრები იტვირთება...';
+
+  const response = await apiGet('rooms');
+  const rooms = response.data || [];
+  ADMIN_ROOMS = rooms;
+
+  panel.innerHTML =
+    '<div class="panel-title-row">' +
+      '<div><h3>Rooms Management</h3><p>აქედან მართავ 20 ფიზიკურ ნომერს, სტატუსს და სართულს.</p></div>' +
+    '</div>' +
+    renderRoomForm() +
+    renderRoomsTable(rooms);
+
+  bindRoomForm();
+}
+
+function renderRoomForm() {
+  return '<form class="manual-block-form" id="roomForm">' +
+    '<div><strong>Room Editor</strong><p>შეცვალე ნომერი, ტიპი, სართული ან სტატუსი.</p></div>' +
+    '<input type="hidden" name="RoomID" id="roomFormId" />' +
+    '<input type="text" name="RoomNumber" id="roomFormNumber" placeholder="ნომერი, მაგ: 201" required />' +
+    '<select name="TypeID" id="roomFormType" required><option value="TYPE-A">TYPE-A</option><option value="TYPE-B">TYPE-B</option><option value="TYPE-C">TYPE-C</option><option value="TYPE-D">TYPE-D</option><option value="VIP">VIP</option></select>' +
+    '<input type="number" name="Floor" id="roomFormFloor" placeholder="სართული" />' +
+    '<select name="Status" id="roomFormStatus" required><option value="Active">Active</option><option value="Inactive">Inactive</option><option value="Maintenance">Maintenance</option></select>' +
+    '<input type="text" name="Note" id="roomFormNote" placeholder="შენიშვნა" />' +
+    '<button type="submit">შენახვა</button>' +
+    '<small id="roomFormStatusText"></small>' +
+  '</form>';
+}
+
+function renderRoomsTable(rooms) {
+  if (!rooms.length) return '<div class="empty-state">ნომრები ჯერ არ არის.</div>';
+
+  const rows = rooms.map(function (room) {
+    return '<tr>' +
+      '<td><strong>' + safe(room.RoomNumber) + '</strong><br><small>' + safe(room.RoomID) + '</small></td>' +
+      '<td>' + safe(room.TypeID) + '</td>' +
+      '<td>' + safe(room.Floor) + '</td>' +
+      '<td><span class="status-pill status-' + String(room.Status || '').toLowerCase() + '">' + safe(room.Status) + '</span></td>' +
+      '<td>' + safe(room.Note) + '</td>' +
+      '<td><button class="mini-btn" onclick="editRoom(\'' + safe(room.RoomID) + '\')">Edit</button></td>' +
+    '</tr>';
+  }).join('');
+
+  return '<div class="table-wrap"><table class="admin-table"><thead><tr><th>ნომერი</th><th>ტიპი</th><th>სართული</th><th>სტატუსი</th><th>შენიშვნა</th><th>მოქმედება</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+}
+
+function bindRoomForm() {
+  const form = $('roomForm');
+  if (!form) return;
+
+  form.addEventListener('submit', async function (event) {
+    event.preventDefault();
+    const status = $('roomFormStatusText');
+    status.textContent = 'ინახება...';
+
+    const data = Object.fromEntries(new FormData(form).entries());
+    if (!data.RoomID) data.RoomID = 'ROOM-' + Date.now();
+
+    const result = await apiPost('upsertRoom', { data: data });
+
+    if (result.success) {
+      status.textContent = 'ნომერი შენახულია';
+      form.reset();
+      loadRooms();
+    } else {
+      status.textContent = result.error || 'ნომრის შენახვა ვერ მოხერხდა';
+    }
+  });
+}
+
+function editRoom(roomId) {
+  const room = ADMIN_ROOMS.find(function (item) {
+    return String(item.RoomID) === String(roomId);
+  });
+
+  if (!room) return;
+
+  $('roomFormId').value = room.RoomID || '';
+  $('roomFormNumber').value = room.RoomNumber || '';
+  $('roomFormType').value = room.TypeID || 'TYPE-A';
+  $('roomFormFloor').value = room.Floor || '';
+  $('roomFormStatus').value = room.Status || 'Active';
+  $('roomFormNote').value = room.Note || '';
+  $('roomFormStatusText').textContent = 'რედაქტირდება ნომერი ' + (room.RoomNumber || '');
 }
 
 async function loadCalendar() {
