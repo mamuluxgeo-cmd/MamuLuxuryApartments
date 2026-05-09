@@ -21,32 +21,56 @@ async function loadRoomTypes() {
   bindRoomTypeForm();
 }
 
+function rtField(label, html) {
+  return '<label class="rt-field"><span>' + label + '</span>' + html + '</label>';
+}
+
 function renderRoomTypeForm() {
-  return '<form class="settings-form" id="roomTypeForm">' +
+  return '<form class="room-type-editor" id="roomTypeForm">' +
+    '<div class="rt-editor-head"><div><span class="eyebrow">Apartment Editor</span><h3>აპარტამენტის ტიპის რედაქტირება</h3><p>აირჩიე Edit, შეცვალე მონაცემები, ატვირთე ფოტო და დააჭირე შენახვას.</p></div><button type="submit" class="rt-save-btn">შენახვა</button></div>' +
     '<input type="hidden" name="TypeID" id="rtTypeID" />' +
-    '<label><span>Type ID</span><input id="rtTypeIDVisible" placeholder="მაგ: TYPE-A" /></label>' +
-    '<label><span>Name</span><input name="Name" id="rtName" placeholder="Apartment name" required /></label>' +
-    '<label><span>Category</span><input name="Category" id="rtCategory" placeholder="One Bedroom / Two Bedroom / VIP" /></label>' +
-    '<label><span>Price GEL</span><input name="Price" id="rtPrice" type="number" placeholder="ფასი ლარში" required /></label>' +
-    '<label><span>Old Price</span><input name="OldPrice" id="rtOldPrice" type="number" placeholder="ძველი ფასი სურვილისამებრ" /></label>' +
-    '<label><span>Guests</span><input name="Guests" id="rtGuests" type="number" placeholder="სტუმრები" /></label>' +
-    '<label><span>Bedrooms</span><input name="Bedrooms" id="rtBedrooms" type="number" placeholder="საძინებლები" /></label>' +
-    '<label><span>Bathrooms</span><input name="Bathrooms" id="rtBathrooms" type="number" placeholder="აბაზანა" /></label>' +
-    '<label><span>Area</span><input name="Area" id="rtArea" placeholder="მაგ: 70 m²" /></label>' +
-    '<label><span>Main Image URL</span><input name="MainImage" id="rtMainImage" placeholder="მთავარი ფოტო URL" /></label>' +
-    '<div class="upload-row"><input type="file" id="rtMainImageFile" accept="image/*" /><button type="button" onclick="uploadRoomTypeMainImage()">Upload Main Image</button></div>' +
-    '<label><span>Gallery Images</span><input name="GalleryImages" id="rtGalleryImages" placeholder="ფოტო URL-ები მძიმით" /></label>' +
-    '<div class="upload-row"><input type="file" id="rtGalleryImageFile" accept="image/*" /><button type="button" onclick="uploadRoomTypeGalleryImage()">Upload Gallery Image</button></div>' +
-    '<small id="roomTypeUploadStatus"></small>' +
-    '<label><span>YouTube Video</span><input name="YoutubeVideo" id="rtYoutubeVideo" placeholder="YouTube ლინკი" /></label>' +
-    '<label><span>Short Description</span><textarea name="ShortDescription" id="rtShortDescription" placeholder="მოკლე აღწერა"></textarea></label>' +
-    '<label><span>Full Description</span><textarea name="FullDescription" id="rtFullDescription" placeholder="სრული აღწერა"></textarea></label>' +
-    '<label><span>Amenities</span><textarea name="Amenities" id="rtAmenities" placeholder="Wi-Fi, კონდიციონერი, აივანი"></textarea></label>' +
-    '<label><span>Status</span><select name="Status" id="rtStatus"><option value="Active">Active</option><option value="Inactive">Inactive</option></select></label>' +
-    '<label><span>Featured</span><select name="Featured" id="rtFeatured"><option value="Yes">Yes</option><option value="No">No</option></select></label>' +
-    '<label><span>Sort Order</span><input name="SortOrder" id="rtSortOrder" type="number" placeholder="1" /></label>' +
-    '<button type="submit">Room Type შენახვა</button>' +
-    '<small id="roomTypeStatus"></small>' +
+    '<div class="rt-section"><h4>ძირითადი ინფორმაცია</h4><div class="rt-grid rt-grid-4">' +
+      rtField('Type ID', '<input id="rtTypeIDVisible" placeholder="მაგ: TYPE-A" />') +
+      rtField('სახელი', '<input name="Name" id="rtName" placeholder="Apartment name" required />') +
+      rtField('კატეგორია', '<input name="Category" id="rtCategory" placeholder="One Bedroom / Two Bedroom / VIP" />') +
+      rtField('Sort Order', '<input name="SortOrder" id="rtSortOrder" type="number" placeholder="1" />') +
+    '</div></div>' +
+    '<div class="rt-section"><h4>ფასი და პარამეტრები</h4><div class="rt-grid rt-grid-6">' +
+      rtField('ფასი GEL', '<input name="Price" id="rtPrice" type="number" placeholder="ფასი ლარში" required />') +
+      rtField('ძველი ფასი', '<input name="OldPrice" id="rtOldPrice" type="number" placeholder="სურვილისამებრ" />') +
+      rtField('სტუმრები', '<input name="Guests" id="rtGuests" type="number" placeholder="5" />') +
+      rtField('საძინებლები', '<input name="Bedrooms" id="rtBedrooms" type="number" placeholder="2" />') +
+      rtField('აბაზანა', '<input name="Bathrooms" id="rtBathrooms" type="number" placeholder="1" />') +
+      rtField('ფართი', '<input name="Area" id="rtArea" placeholder="70 m²" />') +
+    '</div></div>' +
+    '<div class="rt-section"><h4>ფოტოები და ვიდეო</h4>' +
+      '<div class="rt-media-grid">' +
+        '<div class="rt-upload-card">' +
+          '<strong>მთავარი ფოტო</strong>' +
+          '<p>ეს ფოტო გამოჩნდება მთავარ ბარათზე.</p>' +
+          '<input name="MainImage" id="rtMainImage" placeholder="მთავარი ფოტო URL" />' +
+          '<div class="rt-upload-actions"><input type="file" id="rtMainImageFile" accept="image/*" /><button type="button" onclick="uploadRoomTypeMainImage()">Upload Main Image</button></div>' +
+        '</div>' +
+        '<div class="rt-upload-card">' +
+          '<strong>გალერეის ფოტოები</strong>' +
+          '<p>ატვირთული ფოტო URL ავტომატურად დაემატება სიას.</p>' +
+          '<input name="GalleryImages" id="rtGalleryImages" placeholder="ფოტო URL-ები მძიმით" />' +
+          '<div class="rt-upload-actions"><input type="file" id="rtGalleryImageFile" accept="image/*" /><button type="button" onclick="uploadRoomTypeGalleryImage()">Upload Gallery Image</button></div>' +
+        '</div>' +
+      '</div>' +
+      '<small id="roomTypeUploadStatus" class="rt-status"></small>' +
+      '<div class="rt-grid rt-grid-1">' + rtField('YouTube Video', '<input name="YoutubeVideo" id="rtYoutubeVideo" placeholder="YouTube ლინკი" />') + '</div>' +
+    '</div>' +
+    '<div class="rt-section"><h4>აღწერები და კომფორტები</h4><div class="rt-grid rt-grid-3">' +
+      rtField('მოკლე აღწერა', '<textarea name="ShortDescription" id="rtShortDescription" placeholder="მოკლე აღწერა"></textarea>') +
+      rtField('სრული აღწერა', '<textarea name="FullDescription" id="rtFullDescription" placeholder="სრული აღწერა"></textarea>') +
+      rtField('Amenities', '<textarea name="Amenities" id="rtAmenities" placeholder="Wi-Fi, კონდიციონერი, აივანი"></textarea>') +
+    '</div></div>' +
+    '<div class="rt-section"><h4>გამოჩენა საიტზე</h4><div class="rt-grid rt-grid-3">' +
+      rtField('Status', '<select name="Status" id="rtStatus"><option value="Active">Active</option><option value="Inactive">Inactive</option></select>') +
+      rtField('Featured', '<select name="Featured" id="rtFeatured"><option value="Yes">Yes</option><option value="No">No</option></select>') +
+      '<div class="rt-form-message"><span id="roomTypeStatus"></span></div>' +
+    '</div></div>' +
   '</form>';
 }
 
