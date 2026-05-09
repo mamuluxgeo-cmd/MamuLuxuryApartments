@@ -82,14 +82,51 @@ const I18N = {
   }
 };
 
+const CURRENCY = {
+  GEL: { symbol: '₾', rate: 1 },
+  USD: { symbol: '$', rate: 0.37 },
+  EUR: { symbol: '€', rate: 0.34 }
+};
+
 let CURRENT_LANG = localStorage.getItem('site_lang') || 'ka';
+let CURRENT_CURRENCY = localStorage.getItem('site_currency') || 'GEL';
+let LAST_ROOM_TYPES = [];
 
 function t(key) {
   return (I18N[CURRENT_LANG] && I18N[CURRENT_LANG][key]) || I18N.ka[key] || key;
 }
 
+function formatPriceGel(priceGel) {
+  const currency = CURRENCY[CURRENT_CURRENCY] || CURRENCY.GEL;
+  const amount = Math.round(Number(priceGel || 0) * currency.rate);
+  return currency.symbol + amount.toLocaleString('ka-GE');
+}
+
+function setCurrency(currency) {
+  CURRENT_CURRENCY = CURRENCY[currency] ? currency : 'GEL';
+  localStorage.setItem('site_currency', CURRENT_CURRENCY);
+
+  document.querySelectorAll('.currency-switcher button').forEach(function (btn) {
+    btn.classList.toggle('active', btn.dataset.currency === CURRENT_CURRENCY);
+  });
+
+  if (LAST_ROOM_TYPES.length) {
+    renderRoomTypes(LAST_ROOM_TYPES);
+    populateBookingRoomTypes(LAST_ROOM_TYPES);
+  }
+}
+
+function initCurrencySwitcher() {
+  document.querySelectorAll('.currency-switcher button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      setCurrency(this.dataset.currency);
+    });
+  });
+  setCurrency(CURRENT_CURRENCY);
+}
+
 function setLanguage(lang) {
-  CURRENT_LANG = I18N[lang] ? lang : 'ka';
+  CURRENT_LANG = I18N[lang] ? lang : CURRENT_LANG;
   localStorage.setItem('site_lang', CURRENT_LANG);
   document.documentElement.lang = CURRENT_LANG;
 
@@ -101,19 +138,21 @@ function setLanguage(lang) {
     el.placeholder = t(el.dataset.i18nPlaceholder);
   });
 
-  document.querySelectorAll('.language-switcher button').forEach(function (btn) {
+  document.querySelectorAll('.language-switcher button[data-lang]').forEach(function (btn) {
     btn.classList.toggle('active', btn.dataset.lang === CURRENT_LANG);
   });
 }
 
 function initLanguageSwitcher() {
-  document.querySelectorAll('.language-switcher button').forEach(function (btn) {
+  document.querySelectorAll('.language-switcher button[data-lang]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       setLanguage(this.dataset.lang);
-      loadSite();
+      if (LAST_ROOM_TYPES.length) {
+        renderRoomTypes(LAST_ROOM_TYPES);
+        populateBookingRoomTypes(LAST_ROOM_TYPES);
+      }
     });
   });
-
   setLanguage(CURRENT_LANG);
 }
 
@@ -162,6 +201,7 @@ async function loadSite() {
   const gallery = responses[2].data || [];
   const videos = responses[3].data || [];
 
+  LAST_ROOM_TYPES = roomTypes;
   renderSettings(settings);
   renderRoomTypes(roomTypes);
   populateBookingRoomTypes(roomTypes);
@@ -169,6 +209,7 @@ async function loadSite() {
   renderVideos(videos);
   setupBookingForm();
   setLanguage(CURRENT_LANG);
+  setCurrency(CURRENT_CURRENCY);
 }
 
 function renderSettings(settings) {
@@ -225,7 +266,7 @@ function renderRoomTypes(items) {
           '<span>🛏️ ' + safeText(item.Bedrooms) + '</span>' +
           '<span>🛁 ' + safeText(item.Bathrooms) + '</span>' +
         '</div>' +
-        '<h4>₾' + safeText(item.Price) + '</h4>' +
+        '<h4>' + formatPriceGel(item.Price) + '</h4>' +
         '<div class="card-actions">' +
           '<a class="ghost-btn small-btn" href="' + detailUrl + '">' + t('details_btn') + '</a>' +
           '<a class="liquid-btn small-btn" href="#booking" onclick="selectRoomType(\'' + safeText(item.TypeID) + '\')">' + t('book_btn') + '</a>' +
@@ -250,7 +291,7 @@ function populateBookingRoomTypes(items) {
   items.forEach(function (item) {
     const option = document.createElement('option');
     option.value = item.TypeID;
-    option.textContent = getLocalizedField(item, 'Name') + ' — ₾' + item.Price;
+    option.textContent = getLocalizedField(item, 'Name') + ' — ' + formatPriceGel(item.Price);
     select.appendChild(option);
   });
 }
@@ -295,6 +336,7 @@ function setupBookingForm() {
 
     const data = Object.fromEntries(new FormData(form).entries());
     data.language = CURRENT_LANG;
+    data.currency = CURRENT_CURRENCY;
 
     const result = await apiPost('createBooking', data);
 
@@ -309,5 +351,6 @@ function setupBookingForm() {
 
 document.addEventListener('DOMContentLoaded', function () {
   initLanguageSwitcher();
+  initCurrencySwitcher();
   loadSite();
 });
