@@ -1,3 +1,122 @@
+const I18N = {
+  ka: {
+    nav_rooms: 'ნომრები',
+    nav_gallery: 'გალერეა',
+    nav_videos: 'ვიდეო',
+    nav_booking: 'დაჯავშნა',
+    hero_rooms_btn: 'აპარტამენტების ნახვა',
+    hero_booking_btn: 'დაჯავშნა',
+    rooms_title: 'აპარტამენტების ტიპები',
+    booking_title: 'დაჯავშნის მოთხოვნა',
+    booking_text: 'აირჩიე ნომრის ტიპი და თარიღები. სისტემა შეამოწმებს ხელმისაწვდომობას და მოთხოვნას Google Sheets-ში ჩაწერს.',
+    select_room_type: 'აირჩიე ნომრის ტიპი',
+    name_placeholder: 'სახელი და გვარი',
+    phone_placeholder: 'ტელეფონი',
+    email_placeholder: 'ელფოსტა სურვილისამებრ',
+    guests_placeholder: 'სტუმრები',
+    message_placeholder: 'კომენტარი',
+    send_request: 'მოთხოვნის გაგზავნა',
+    gallery_title: 'გალერეა',
+    videos_title: 'ვიდეოები',
+    contact_title: 'კონტაქტი',
+    phone_label: 'ტელეფონი',
+    map_label: 'რუკაზე ნახვა',
+    details_btn: 'ვრცლად',
+    book_btn: 'დაჯავშნა',
+    sending: 'იგზავნება...',
+    success: 'მოთხოვნა მიღებულია. დაჯავშნის ნომერი: '
+  },
+  en: {
+    nav_rooms: 'Rooms',
+    nav_gallery: 'Gallery',
+    nav_videos: 'Videos',
+    nav_booking: 'Booking',
+    hero_rooms_btn: 'View Apartments',
+    hero_booking_btn: 'Book Now',
+    rooms_title: 'Apartment Types',
+    booking_title: 'Booking Request',
+    booking_text: 'Choose room type and dates. The system will check availability and save your request.',
+    select_room_type: 'Select room type',
+    name_placeholder: 'Full Name',
+    phone_placeholder: 'Phone Number',
+    email_placeholder: 'Email (optional)',
+    guests_placeholder: 'Guests',
+    message_placeholder: 'Message',
+    send_request: 'Send Request',
+    gallery_title: 'Gallery',
+    videos_title: 'Videos',
+    contact_title: 'Contact',
+    phone_label: 'Phone',
+    map_label: 'View on Map',
+    details_btn: 'Details',
+    book_btn: 'Book',
+    sending: 'Sending...',
+    success: 'Request received. Booking ID: '
+  },
+  ru: {
+    nav_rooms: 'Номера',
+    nav_gallery: 'Галерея',
+    nav_videos: 'Видео',
+    nav_booking: 'Бронирование',
+    hero_rooms_btn: 'Смотреть апартаменты',
+    hero_booking_btn: 'Забронировать',
+    rooms_title: 'Типы апартаментов',
+    booking_title: 'Запрос на бронирование',
+    booking_text: 'Выберите тип номера и даты. Система проверит доступность и сохранит заявку.',
+    select_room_type: 'Выберите тип номера',
+    name_placeholder: 'Имя и фамилия',
+    phone_placeholder: 'Телефон',
+    email_placeholder: 'Email (необязательно)',
+    guests_placeholder: 'Гости',
+    message_placeholder: 'Комментарий',
+    send_request: 'Отправить запрос',
+    gallery_title: 'Галерея',
+    videos_title: 'Видео',
+    contact_title: 'Контакты',
+    phone_label: 'Телефон',
+    map_label: 'Открыть карту',
+    details_btn: 'Подробнее',
+    book_btn: 'Забронировать',
+    sending: 'Отправка...',
+    success: 'Запрос получен. Номер бронирования: '
+  }
+};
+
+let CURRENT_LANG = localStorage.getItem('site_lang') || 'ka';
+
+function t(key) {
+  return (I18N[CURRENT_LANG] && I18N[CURRENT_LANG][key]) || I18N.ka[key] || key;
+}
+
+function setLanguage(lang) {
+  CURRENT_LANG = I18N[lang] ? lang : 'ka';
+  localStorage.setItem('site_lang', CURRENT_LANG);
+  document.documentElement.lang = CURRENT_LANG;
+
+  document.querySelectorAll('[data-i18n]').forEach(function (el) {
+    el.textContent = t(el.dataset.i18n);
+  });
+
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(function (el) {
+    el.placeholder = t(el.dataset.i18nPlaceholder);
+  });
+
+  document.querySelectorAll('.language-switcher button').forEach(function (btn) {
+    btn.classList.toggle('active', btn.dataset.lang === CURRENT_LANG);
+  });
+}
+
+function initLanguageSwitcher() {
+  document.querySelectorAll('.language-switcher button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      setLanguage(this.dataset.lang);
+      loadSite();
+    });
+  });
+
+  setLanguage(CURRENT_LANG);
+}
+
 function setTheme(theme) {
   document.body.setAttribute('data-theme', theme);
   localStorage.setItem('theme', theme);
@@ -18,6 +137,11 @@ function getYouTubeEmbedUrl(url) {
   const text = String(url || '');
   const match = text.match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
   return match ? 'https://www.youtube.com/embed/' + match[1] : '';
+}
+
+function getLocalizedField(item, baseName) {
+  const suffix = '_' + CURRENT_LANG.toUpperCase();
+  return item[baseName + suffix] || item[baseName] || '';
 }
 
 async function loadSite() {
@@ -44,6 +168,7 @@ async function loadSite() {
   renderGallery(gallery);
   renderVideos(videos);
   setupBookingForm();
+  setLanguage(CURRENT_LANG);
 }
 
 function renderSettings(settings) {
@@ -87,12 +212,14 @@ function renderRoomTypes(items) {
 
     const image = item.MainImage || 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80';
     const detailUrl = 'apartment.html?id=' + encodeURIComponent(item.TypeID);
+    const name = getLocalizedField(item, 'Name');
+    const shortDescription = getLocalizedField(item, 'ShortDescription');
 
     article.innerHTML =
-      '<img src="' + safeText(image) + '" alt="' + safeText(item.Name) + '">' +
+      '<img src="' + safeText(image) + '" alt="' + safeText(name) + '">' +
       '<div class="card-content">' +
-        '<h3>' + safeText(item.Name) + '</h3>' +
-        '<p>' + safeText(item.ShortDescription) + '</p>' +
+        '<h3>' + safeText(name) + '</h3>' +
+        '<p>' + safeText(shortDescription) + '</p>' +
         '<div class="meta">' +
           '<span>👥 ' + safeText(item.Guests) + '</span>' +
           '<span>🛏️ ' + safeText(item.Bedrooms) + '</span>' +
@@ -100,8 +227,8 @@ function renderRoomTypes(items) {
         '</div>' +
         '<h4>₾' + safeText(item.Price) + '</h4>' +
         '<div class="card-actions">' +
-          '<a class="ghost-btn small-btn" href="' + detailUrl + '">ვრცლად</a>' +
-          '<a class="liquid-btn small-btn" href="#booking" onclick="selectRoomType(\'' + safeText(item.TypeID) + '\')">დაჯავშნა</a>' +
+          '<a class="ghost-btn small-btn" href="' + detailUrl + '">' + t('details_btn') + '</a>' +
+          '<a class="liquid-btn small-btn" href="#booking" onclick="selectRoomType(\'' + safeText(item.TypeID) + '\')">' + t('book_btn') + '</a>' +
         '</div>' +
       '</div>';
 
@@ -118,10 +245,12 @@ function populateBookingRoomTypes(items) {
   const select = document.getElementById('bookingRoomType');
   if (!select) return;
 
+  select.innerHTML = '<option value="">' + t('select_room_type') + '</option>';
+
   items.forEach(function (item) {
     const option = document.createElement('option');
     option.value = item.TypeID;
-    option.textContent = item.Name + ' — ₾' + item.Price;
+    option.textContent = getLocalizedField(item, 'Name') + ' — ₾' + item.Price;
     select.appendChild(option);
   });
 }
@@ -129,9 +258,7 @@ function populateBookingRoomTypes(items) {
 function renderGallery(items) {
   const container = document.getElementById('galleryGrid');
   if (!container) return;
-
   container.innerHTML = '';
-
   items.slice(0, 8).forEach(function (item) {
     if (!item.ImageUrl) return;
     const card = document.createElement('article');
@@ -144,13 +271,10 @@ function renderGallery(items) {
 function renderVideos(items) {
   const container = document.getElementById('videoGrid');
   if (!container) return;
-
   container.innerHTML = '';
-
   items.forEach(function (item) {
     const embedUrl = getYouTubeEmbedUrl(item.YoutubeUrl);
     if (!embedUrl) return;
-
     const card = document.createElement('article');
     card.className = 'card video-card';
     card.innerHTML = '<iframe src="' + embedUrl + '" title="' + safeText(item.Title) + '" allowfullscreen></iframe>';
@@ -167,18 +291,23 @@ function setupBookingForm() {
 
   form.addEventListener('submit', async function (event) {
     event.preventDefault();
-    status.textContent = 'იგზავნება...';
+    status.textContent = t('sending');
 
     const data = Object.fromEntries(new FormData(form).entries());
+    data.language = CURRENT_LANG;
+
     const result = await apiPost('createBooking', data);
 
     if (result.success) {
-      status.textContent = 'მოთხოვნა მიღებულია. დაჯავშნის ნომერი: ' + result.bookingId;
+      status.textContent = t('success') + result.bookingId;
       form.reset();
     } else {
-      status.textContent = result.error || 'დაფიქსირდა შეცდომა.';
+      status.textContent = result.error || 'Error.';
     }
   });
 }
 
-document.addEventListener('DOMContentLoaded', loadSite);
+document.addEventListener('DOMContentLoaded', function () {
+  initLanguageSwitcher();
+  loadSite();
+});
