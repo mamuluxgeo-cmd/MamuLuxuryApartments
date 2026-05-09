@@ -1,17 +1,37 @@
 (function () {
-  const waitForAdminCore = setInterval(function () {
-    if (typeof window.loadView !== 'function') return;
+  function activateGalleryButton(button) {
+    document.querySelectorAll('.nav-btn').forEach(function (btn) {
+      btn.classList.remove('active');
+    });
 
-    clearInterval(waitForAdminCore);
+    button.classList.add('active');
 
-    const originalLoadView = window.loadView;
+    const title = document.getElementById('panelTitle');
+    if (title) title.textContent = 'Gallery';
 
-    window.loadView = function (view) {
-      if (view === 'gallery' && typeof window.loadGalleryManagement === 'function') {
-        return window.loadGalleryManagement();
-      }
+    if (typeof window.loadGalleryManagement === 'function') {
+      window.loadGalleryManagement();
+    }
+  }
 
-      return originalLoadView(view);
-    };
+  function bindGalleryNavigation() {
+    const galleryButton = document.querySelector('.nav-btn[data-view="gallery"]');
+    if (!galleryButton || galleryButton.dataset.galleryReady === 'true') return false;
+
+    galleryButton.dataset.galleryReady = 'true';
+
+    galleryButton.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      activateGalleryButton(galleryButton);
+    }, true);
+
+    return true;
+  }
+
+  const waitForButton = setInterval(function () {
+    if (bindGalleryNavigation()) {
+      clearInterval(waitForButton);
+    }
   }, 50);
 })();
