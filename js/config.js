@@ -1,0 +1,5 @@
+const CONFIG = {
+  GOOGLE_SCRIPT_URL: '',
+  IMGBB_API_KEY: '104cf2ebb4a05c7908280dff041c8609',
+  DEFAULT_THEME: 'night'
+};
