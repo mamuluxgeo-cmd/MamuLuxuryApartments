@@ -102,6 +102,20 @@ function formatPriceGel(priceGel) {
   return currency.symbol + amount.toLocaleString('ka-GE');
 }
 
+function applyExchangeRates(exchangeRates) {
+  if (!exchangeRates || !exchangeRates.success || !exchangeRates.rates) return;
+
+  if (Number(exchangeRates.rates.USD) > 0) {
+    CURRENCY.USD.rate = Number(exchangeRates.rates.USD);
+  }
+
+  if (Number(exchangeRates.rates.EUR) > 0) {
+    CURRENCY.EUR.rate = Number(exchangeRates.rates.EUR);
+  }
+
+  CURRENCY.GEL.rate = 1;
+}
+
 function setCurrency(currency) {
   CURRENT_CURRENCY = CURRENCY[currency] ? currency : 'GEL';
   localStorage.setItem('site_currency', CURRENT_CURRENCY);
@@ -193,13 +207,17 @@ async function loadSite() {
     apiGet('settings'),
     apiGet('roomTypes'),
     apiGet('gallery'),
-    apiGet('videos')
+    apiGet('videos'),
+    apiGet('exchangeRates')
   ]);
 
   const settings = responses[0].data || {};
   const roomTypes = responses[1].data || [];
   const gallery = responses[2].data || [];
   const videos = responses[3].data || [];
+  const exchangeRates = responses[4] || {};
+
+  applyExchangeRates(exchangeRates);
 
   LAST_ROOM_TYPES = roomTypes;
   renderSettings(settings);
