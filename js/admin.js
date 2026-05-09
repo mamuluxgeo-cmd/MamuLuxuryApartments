@@ -51,6 +51,10 @@ function overlaps(startA, endA, startB, endB) {
   return new Date(startA) < new Date(endB) && new Date(startB) < new Date(endA);
 }
 
+function money(value) {
+  return '₾' + Number(value || 0).toLocaleString('ka-GE');
+}
+
 async function login(username, password) {
   return apiPost('adminLogin', { username, password });
 }
@@ -69,6 +73,16 @@ async function loadDashboard() {
   const rooms = roomsRes.data || [];
   ADMIN_ROOMS = rooms;
 
+  const activeRevenueBookings = bookings.filter(function (booking) {
+    return ['Confirmed', 'CheckedIn', 'CheckedOut'].indexOf(String(booking.Status || '')) !== -1;
+  });
+  const totalRevenue = activeRevenueBookings.reduce(function (sum, booking) {
+    return sum + Number(booking.TotalPrice || 0);
+  }, 0);
+  const totalNights = activeRevenueBookings.reduce(function (sum, booking) {
+    return sum + Number(booking.Nights || 0);
+  }, 0);
+  const occupancy = rooms.length ? Math.round((totalNights / (rooms.length * 30)) * 100) : 0;
   const newBookings = bookings.filter(function (booking) {
     return String(booking.Status || '') === 'New';
   }).length;
@@ -77,12 +91,37 @@ async function loadDashboard() {
   }).length;
 
   stats.innerHTML =
-    '<div class="stats-card"><span class="eyebrow">Bookings</span><h3>' + bookings.length + '</h3><p>სულ ჯავშნები</p></div>' +
+    '<div class="stats-card"><span class="eyebrow">Revenue</span><h3>' + money(totalRevenue) + '</h3><p>დადასტურებული შემოსავალი</p></div>' +
+    '<div class="stats-card"><span class="eyebrow">Occupancy</span><h3>' + occupancy + '%</h3><p>30 დღეზე გათვლილი დატვირთულობა</p></div>' +
     '<div class="stats-card"><span class="eyebrow">New</span><h3>' + newBookings + '</h3><p>ახალი მოთხოვნები</p></div>' +
-    '<div class="stats-card"><span class="eyebrow">Confirmed</span><h3>' + confirmedBookings + '</h3><p>დადასტურებული</p></div>' +
-    '<div class="stats-card"><span class="eyebrow">Rooms</span><h3>' + rooms.length + '</h3><p>სულ ნომრები</p></div>';
+    '<div class="stats-card"><span class="eyebrow">Confirmed</span><h3>' + confirmedBookings + '</h3><p>დადასტურებული</p></div>';
 
-  panel.innerHTML = '<h3>ბოლო ჯავშნები</h3>' + renderBookingsTable(bookings.slice(-8).reverse(), true);
+  panel.innerHTML = renderRevenueDashboard(bookings, rooms) + '<h3>ბოლო ჯავშნები</h3>' + renderBookingsTable(bookings.slice(-8).reverse(), true);
+}
+
+function renderRevenueDashboard(bookings, rooms) {
+  const revenueBookings = bookings.filter(function (booking) {
+    return ['Confirmed', 'CheckedIn', 'CheckedOut'].indexOf(String(booking.Status || '')) !== -1;
+  });
+
+  const byType = {};
+  revenueBookings.forEach(function (booking) {
+    const key = booking.RoomTypeID || booking.RoomTypeName || 'Unknown';
+    if (!byType[key]) byType[key] = { revenue: 0, nights: 0, count: 0 };
+    byType[key].revenue += Number(booking.TotalPrice || 0);
+    byType[key].nights += Number(booking.Nights || 0);
+    byType[key].count += 1;
+  });
+
+  const rows = Object.keys(byType).map(function (key) {
+    const item = byType[key];
+    return '<tr><td><strong>' + safe(key) + '</strong></td><td>' + item.count + '</td><td>' + item.nights + '</td><td>' + money(item.revenue) + '</td></tr>';
+  }).join('') || '<tr><td colspan="4">შემოსავლის მონაცემები ჯერ არ არის.</td></tr>';
+
+  return '<div class="revenue-box">' +
+    '<div><span class="eyebrow">Revenue Dashboard</span><h3>შემოსავალი და დატვირთულობა</h3><p>ანგარიში ითვლის მხოლოდ Confirmed, CheckedIn და CheckedOut სტატუსის ჯავშნებს.</p></div>' +
+    '<div class="table-wrap"><table class="admin-table"><thead><tr><th>ნომრის ტიპი</th><th>ჯავშნები</th><th>ღამეები</th><th>შემოსავალი</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+  '</div>';
 }
 
 async function loadBookings() {
