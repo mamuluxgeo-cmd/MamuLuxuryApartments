@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Apartment Details — Mamu Luxury Apartments</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-theme="night">
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+
+  <header>
+    <nav>
+      <a class="brand" href="index.html">Mamu Luxury Apartments</a>
+      <div class="nav-links">
+        <a href="index.html#rooms">ნომრები</a>
+        <a href="index.html#gallery">გალერეა</a>
+        <a href="index.html#booking">დაჯავშნა</a>
+      </div>
+      <button class="theme-toggle" onclick="toggleTheme()" aria-label="Theme">◐</button>
+    </nav>
+  </header>
+
+  <main>
+    <section class="section detail-hero">
+      <div class="detail-layout">
+        <div class="detail-copy">
+          <span class="eyebrow" id="roomCategory">Apartment Type</span>
+          <h1 class="section-title" id="roomName">იტვირთება...</h1>
+          <p class="muted" id="roomDescription"></p>
+          <div class="meta detail-meta" id="roomMeta"></div>
+          <div class="actions">
+            <a href="#detailBooking" class="liquid-btn">დაჯავშნა</a>
+            <a href="index.html#rooms" class="ghost-btn">უკან დაბრუნება</a>
+          </div>
+        </div>
+        <div class="detail-image-wrap">
+          <img id="roomMainImage" class="detail-image" src="https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80" alt="Apartment">
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <span class="eyebrow">Gallery</span>
+        <h2 class="section-title">ფოტოები</h2>
+      </div>
+      <div class="gallery-grid" id="detailGallery"></div>
+    </section>
+
+    <section class="section" id="detailBooking">
+      <div class="booking-shell">
+        <div>
+          <span class="eyebrow">Booking Request</span>
+          <h2 class="section-title">ამ ნომრის დაჯავშნა</h2>
+          <p class="muted">მოთხოვნა გაიგზავნება Google Sheets-ში და Admin Panel-ში გამოჩნდება ახალი ჯავშნის სახით.</p>
+        </div>
+        <form id="detailBookingForm" class="lux-form">
+          <input type="hidden" name="roomTypeId" id="detailRoomTypeId" />
+          <div class="form-row">
+            <input type="date" name="checkin" required />
+            <input type="date" name="checkout" required />
+          </div>
+          <div class="form-row">
+            <input type="text" name="name" placeholder="სახელი და გვარი" required />
+            <input type="tel" name="phone" placeholder="ტელეფონი" required />
+          </div>
+          <div class="form-row">
+            <input type="email" name="email" placeholder="ელფოსტა სურვილისამებრ" />
+            <input type="number" name="guests" min="1" placeholder="სტუმრები" required />
+          </div>
+          <textarea name="message" placeholder="კომენტარი"></textarea>
+          <button class="liquid-btn" type="submit">მოთხოვნის გაგზავნა</button>
+          <p id="detailBookingStatus" class="status-text"></p>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">© 2026 Mamu Luxury Apartments</footer>
+
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/apartment.js"></script>
+</body>
+</html>
