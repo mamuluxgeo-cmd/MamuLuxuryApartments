@@ -17,12 +17,19 @@
     <nav>
       <a class="brand" href="#top" id="siteTitle">Mamu Luxury Apartments</a>
       <div class="nav-links">
-        <a href="#rooms">ნომრები</a>
-        <a href="#gallery">გალერეა</a>
-        <a href="#videos">ვიდეო</a>
-        <a href="#booking">დაჯავშნა</a>
+        <a href="#rooms" data-i18n="nav_rooms">ნომრები</a>
+        <a href="#gallery" data-i18n="nav_gallery">გალერეა</a>
+        <a href="#videos" data-i18n="nav_videos">ვიდეო</a>
+        <a href="#booking" data-i18n="nav_booking">დაჯავშნა</a>
       </div>
-      <button class="theme-toggle" onclick="toggleTheme()" aria-label="Theme">◐</button>
+      <div class="nav-tools">
+        <div class="language-switcher">
+          <button type="button" data-lang="ka">KA</button>
+          <button type="button" data-lang="en">EN</button>
+          <button type="button" data-lang="ru">RU</button>
+        </div>
+        <button class="theme-toggle" onclick="toggleTheme()" aria-label="Theme">◐</button>
+      </div>
     </nav>
   </header>
 
@@ -33,8 +40,8 @@
         <h1 id="heroTitle">Mamu Luxury Apartments</h1>
         <p id="heroSubtitle">პრემიუმ აპარტამენტები ბათუმში</p>
         <div class="actions">
-          <a href="#rooms" class="liquid-btn">აპარტამენტების ნახვა</a>
-          <a href="#booking" class="ghost-btn">დაჯავშნა</a>
+          <a href="#rooms" class="liquid-btn" data-i18n="hero_rooms_btn">აპარტამენტების ნახვა</a>
+          <a href="#booking" class="ghost-btn" data-i18n="hero_booking_btn">დაჯავშნა</a>
         </div>
       </div>
     </section>
@@ -42,7 +49,7 @@
     <section class="section reveal" id="rooms">
       <div class="section-head">
         <span class="eyebrow">20 Rooms / 5 Types</span>
-        <h2 class="section-title">აპარტამენტების ტიპები</h2>
+        <h2 class="section-title" data-i18n="rooms_title">აპარტამენტების ტიპები</h2>
       </div>
       <div class="grid" id="roomTypes"></div>
     </section>
@@ -51,27 +58,27 @@
       <div class="booking-shell">
         <div>
           <span class="eyebrow">Booking Request</span>
-          <h2 class="section-title">დაჯავშნის მოთხოვნა</h2>
-          <p class="muted">აირჩიე ნომრის ტიპი და თარიღები. სისტემა შეამოწმებს ხელმისაწვდომობას და მოთხოვნას Google Sheets-ში ჩაწერს.</p>
+          <h2 class="section-title" data-i18n="booking_title">დაჯავშნის მოთხოვნა</h2>
+          <p class="muted" data-i18n="booking_text">აირჩიე ნომრის ტიპი და თარიღები. სისტემა შეამოწმებს ხელმისაწვდომობას და მოთხოვნას Google Sheets-ში ჩაწერს.</p>
         </div>
         <form id="bookingForm" class="lux-form">
           <select name="roomTypeId" id="bookingRoomType" required>
-            <option value="">აირჩიე ნომრის ტიპი</option>
+            <option value="" data-i18n="select_room_type">აირჩიე ნომრის ტიპი</option>
           </select>
           <div class="form-row">
             <input type="date" name="checkin" required />
             <input type="date" name="checkout" required />
           </div>
           <div class="form-row">
-            <input type="text" name="name" placeholder="სახელი და გვარი" required />
-            <input type="tel" name="phone" placeholder="ტელეფონი" required />
+            <input type="text" name="name" data-i18n-placeholder="name_placeholder" placeholder="სახელი და გვარი" required />
+            <input type="tel" name="phone" data-i18n-placeholder="phone_placeholder" placeholder="ტელეფონი" required />
           </div>
           <div class="form-row">
-            <input type="email" name="email" placeholder="ელფოსტა სურვილისამებრ" />
-            <input type="number" name="guests" min="1" placeholder="სტუმრები" required />
+            <input type="email" name="email" data-i18n-placeholder="email_placeholder" placeholder="ელფოსტა სურვილისამებრ" />
+            <input type="number" name="guests" min="1" data-i18n-placeholder="guests_placeholder" placeholder="სტუმრები" required />
           </div>
-          <textarea name="message" placeholder="კომენტარი"></textarea>
-          <button class="liquid-btn" type="submit">მოთხოვნის გაგზავნა</button>
+          <textarea name="message" data-i18n-placeholder="message_placeholder" placeholder="კომენტარი"></textarea>
+          <button class="liquid-btn" type="submit" data-i18n="send_request">მოთხოვნის გაგზავნა</button>
           <p id="bookingStatus" class="status-text"></p>
         </form>
       </div>
@@ -80,7 +87,7 @@
     <section class="section reveal" id="gallery">
       <div class="section-head">
         <span class="eyebrow">Gallery</span>
-        <h2 class="section-title">გალერეა</h2>
+        <h2 class="section-title" data-i18n="gallery_title">გალერეა</h2>
       </div>
       <div class="gallery-grid" id="galleryGrid"></div>
     </section>
@@ -88,7 +95,7 @@
     <section class="section reveal" id="videos">
       <div class="section-head">
         <span class="eyebrow">Video Tour</span>
-        <h2 class="section-title">ვიდეოები</h2>
+        <h2 class="section-title" data-i18n="videos_title">ვიდეოები</h2>
       </div>
       <div class="video-grid" id="videoGrid"></div>
     </section>
@@ -96,10 +103,10 @@
     <section class="section reveal" id="contact">
       <div class="contact-card">
         <span class="eyebrow">Contact</span>
-        <h2 class="section-title">კონტაქტი</h2>
+        <h2 class="section-title" data-i18n="contact_title">კონტაქტი</h2>
         <div class="contact-list">
-          <a id="phoneLink" href="#">ტელეფონი</a>
-          <a id="mapLink" href="#" target="_blank">რუკაზე ნახვა</a>
+          <a id="phoneLink" href="#" data-i18n="phone_label">ტელეფონი</a>
+          <a id="mapLink" href="#" target="_blank" data-i18n="map_label">რუკაზე ნახვა</a>
           <a id="whatsappLink" href="#" target="_blank">WhatsApp</a>
         </div>
       </div>
