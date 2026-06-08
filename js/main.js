@@ -191,9 +191,18 @@ function normalizeImageUrl(url) {
   let text = String(url || '').trim();
   if (!text) return '';
 
-  const driveMatch = text.match(/drive\.google\.com\/file\/d\/([^/]+)/i) || text.match(/[?&]id=([A-Za-z0-9_-]{20,})/);
-  if (driveMatch && driveMatch[1]) {
-    text = 'https://drive.google.com/uc?export=view&id=' + driveMatch[1];
+  text = text.replace(/&amp;/g, '&');
+
+  if (/drive\.google\.com\/thumbnail\?/i.test(text)) {
+    return text;
+  }
+
+  const driveFileMatch = text.match(/drive\.google\.com\/file\/d\/([^/]+)/i);
+  const driveIdMatch = text.match(/[?&]id=([A-Za-z0-9_-]{20,})/);
+  const driveId = driveFileMatch ? driveFileMatch[1] : (driveIdMatch ? driveIdMatch[1] : '');
+
+  if (driveId && /drive\.google\.com/i.test(text)) {
+    return 'https://drive.google.com/thumbnail?id=' + driveId + '&sz=w1600';
   }
 
   return /^https?:\/\//i.test(text) ? text : '';
