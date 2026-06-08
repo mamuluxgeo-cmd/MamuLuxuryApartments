@@ -10,21 +10,38 @@ function uploadFileToImgbb(file) {
       return;
     }
 
+    if (!CONFIG.IMGBB_API_KEY) {
+      reject(new Error('ImgBB API key არ არის მითითებული config.js-ში'));
+      return;
+    }
+
     const reader = new FileReader();
 
     reader.onload = async function () {
       try {
-        const result = await apiPost('uploadImage', {
-          imageBase64: reader.result,
-          fileName: file.name || 'mamu-luxury-apartment'
+        const base64 = String(reader.result || '').replace(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, '');
+        const formData = new FormData();
+        formData.append('image', base64);
+        formData.append('name', (file.name || 'mamu-luxury-apartment').replace(/\.[^.]+$/, ''));
+
+        const response = await fetch('https://api.imgbb.com/1/upload?key=' + encodeURIComponent(CONFIG.IMGBB_API_KEY), {
+          method: 'POST',
+          body: formData
         });
 
-        if (!result.success) {
-          reject(new Error(result.error || 'ფოტოს ატვირთვა ვერ მოხერხდა'));
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          reject(new Error((result && result.error && result.error.message) || 'ფოტოს ატვირთვა ვერ მოხერხდა'));
           return;
         }
 
-        resolve(result);
+        resolve({
+          success: true,
+          url: result.data && result.data.url ? result.data.url : '',
+          displayUrl: result.data && result.data.display_url ? result.data.display_url : '',
+          deleteUrl: result.data && result.data.delete_url ? result.data.delete_url : ''
+        });
       } catch (error) {
         reject(error);
       }
