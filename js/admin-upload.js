@@ -43,6 +43,17 @@ function setUploadStatus(text) {
   if (status) status.textContent = text;
 }
 
+function appendUrlToInput(input, url) {
+  if (!input || !url) return;
+  const current = input.value.trim();
+  const parts = current
+    ? current.split(/[\n,;|]+/).map(function (item) { return item.trim(); }).filter(Boolean)
+    : [];
+
+  if (parts.indexOf(url) === -1) parts.push(url);
+  input.value = parts.join('\n');
+}
+
 async function uploadRoomTypeMainImage() {
   const input = document.getElementById('rtMainImageFile');
   const urlInput = document.getElementById('rtMainImage');
@@ -56,8 +67,9 @@ async function uploadRoomTypeMainImage() {
 
   try {
     const result = await uploadFileToImgbb(input.files[0]);
-    if (urlInput) urlInput.value = result.url || result.displayUrl || '';
-    setUploadStatus('მთავარი ფოტო აიტვირთა და URL ჩაიწერა');
+    const url = result.url || result.displayUrl || '';
+    if (urlInput) urlInput.value = url;
+    setUploadStatus('მთავარი ფოტო აიტვირთა. ახლა დააჭირე შენახვას.');
   } catch (error) {
     setUploadStatus(error.message || 'ატვირთვა ვერ მოხერხდა');
   }
@@ -67,24 +79,27 @@ async function uploadRoomTypeGalleryImage() {
   const input = document.getElementById('rtGalleryImageFile');
   const galleryInput = document.getElementById('rtGalleryImages');
 
-  if (!input || !input.files || !input.files[0]) {
-    setUploadStatus('ჯერ აირჩიე გალერეის ფოტო');
+  if (!input || !input.files || input.files.length === 0) {
+    setUploadStatus('ჯერ აირჩიე ერთი ან რამდენიმე გალერეის ფოტო');
     return;
   }
 
-  setUploadStatus('გალერეის ფოტო იტვირთება...');
+  const files = Array.from(input.files);
+  let uploaded = 0;
+  setUploadStatus('გალერეის ფოტოები იტვირთება: 0/' + files.length);
 
-  try {
-    const result = await uploadFileToImgbb(input.files[0]);
-    const url = result.url || result.displayUrl || '';
-
-    if (galleryInput && url) {
-      const current = galleryInput.value.trim();
-      galleryInput.value = current ? current + ', ' + url : url;
+  for (const file of files) {
+    try {
+      const result = await uploadFileToImgbb(file);
+      const url = result.url || result.displayUrl || '';
+      appendUrlToInput(galleryInput, url);
+      uploaded += 1;
+      setUploadStatus('გალერეის ფოტოები იტვირთება: ' + uploaded + '/' + files.length);
+    } catch (error) {
+      setUploadStatus((error && error.message) ? error.message : 'ერთ-ერთი ფოტოს ატვირთვა ვერ მოხერხდა');
+      return;
     }
-
-    setUploadStatus('გალერეის ფოტო აიტვირთა და URL დაემატა');
-  } catch (error) {
-    setUploadStatus(error.message || 'ატვირთვა ვერ მოხერხდა');
   }
+
+  setUploadStatus('აიტვირთა ' + uploaded + ' ფოტო. ახლა დააჭირე შენახვას.');
 }
