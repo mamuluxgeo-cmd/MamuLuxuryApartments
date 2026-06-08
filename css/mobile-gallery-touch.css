@@ -1,0 +1,25 @@
+@media (hover: none), (pointer: coarse) {
+  .gallery-carousel,
+  .gallery-carousel *,
+  .gallery-main-frame,
+  .gallery-main-frame img,
+  .gallery-nav-btn,
+  .gallery-thumb,
+  .gallery-thumb img,
+  .gallery-lightbox,
+  .gallery-lightbox *,
+  .lightbox-arrow,
+  .lightbox-close {
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  .gallery-main-frame img,
+  .gallery-thumb img,
+  .gallery-lightbox img {
+    -webkit-user-drag: none;
+    user-drag: none;
+  }
+}
