@@ -17,7 +17,9 @@ const APARTMENT_I18N = {
     unavailable_text: 'ამ თარიღებში ეს ტიპი დაკავებულია. სცადე სხვა თარიღი.',
     sending: 'იგზავნება...',
     success: 'მოთხოვნა მიღებულია. დაჯავშნის ნომერი: ',
-    error: 'დაფიქსირდა შეცდომა.'
+    error: 'დაფიქსირდა შეცდომა.',
+    rooms_title: 'ამ ტიპის ნომრები',
+    no_rooms: 'ამ ტიპზე ნომრები ჯერ დამატებული არ არის.'
   },
   en: {
     nav_rooms: 'Rooms',
@@ -37,7 +39,9 @@ const APARTMENT_I18N = {
     unavailable_text: 'This apartment type is unavailable for these dates. Try different dates.',
     sending: 'Sending...',
     success: 'Request received. Booking ID: ',
-    error: 'Something went wrong.'
+    error: 'Something went wrong.',
+    rooms_title: 'Rooms in this type',
+    no_rooms: 'No rooms have been added for this type yet.'
   },
   ru: {
     nav_rooms: 'Номера',
@@ -57,12 +61,17 @@ const APARTMENT_I18N = {
     unavailable_text: 'Этот тип апартамента недоступен на эти даты. Попробуйте другие даты.',
     sending: 'Отправка...',
     success: 'Запрос получен. Номер бронирования: ',
-    error: 'Произошла ошибка.'
+    error: 'Произошла ошибка.',
+    rooms_title: 'Номера этого типа',
+    no_rooms: 'Для этого типа пока не добавлены номера.'
   }
 };
 
+const FALLBACK_APARTMENT_IMAGE = 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80';
+
 let CURRENT_LANG = localStorage.getItem('site_lang') || 'ka';
 let CURRENT_ROOM = null;
+let CURRENT_TYPE_ROOMS = [];
 
 function tr(key) {
   return (APARTMENT_I18N[CURRENT_LANG] && APARTMENT_I18N[CURRENT_LANG][key]) || APARTMENT_I18N.ka[key] || key;
@@ -89,7 +98,10 @@ function escapeHtml(value) {
 }
 
 function splitGallery(value) {
-  return String(value || '').split(',').map(function (v) { return v.trim(); }).filter(Boolean);
+  return String(value || '')
+    .split(/[\n,;|]+/)
+    .map(function (v) { return v.trim(); })
+    .filter(function (v) { return /^https?:\/\//i.test(v); });
 }
 
 function splitAmenities(value) {
@@ -99,6 +111,20 @@ function splitAmenities(value) {
 function getLocalizedField(item, baseName) {
   const suffix = '_' + CURRENT_LANG.toUpperCase();
   return item[baseName + suffix] || item[baseName] || '';
+}
+
+function getAllImages(room) {
+  const images = [];
+  const mainImage = String(room.MainImage || '').trim();
+
+  if (/^https?:\/\//i.test(mainImage)) images.push(mainImage);
+
+  splitGallery(room.GalleryImages).forEach(function (url) {
+    if (images.indexOf(url) === -1) images.push(url);
+  });
+
+  if (!images.length) images.push(FALLBACK_APARTMENT_IMAGE);
+  return images;
 }
 
 function setLanguage(lang) {
@@ -115,6 +141,7 @@ function setLanguage(lang) {
   });
 
   if (CURRENT_ROOM) renderRoom(CURRENT_ROOM);
+  if (CURRENT_TYPE_ROOMS.length) renderTypeRooms(CURRENT_TYPE_ROOMS);
 }
 
 function initLanguageSwitcher() {
@@ -132,8 +159,14 @@ async function loadApartment() {
   initLanguageSwitcher();
 
   const roomTypeId = qs('id') || 'TYPE-A';
-  const response = await apiGet('roomTypes');
-  const items = response.data || [];
+
+  const [roomTypesRes, roomsRes] = await Promise.all([
+    apiGet('roomTypes'),
+    apiGet('rooms')
+  ]);
+
+  const items = roomTypesRes.data || [];
+  const rooms = roomsRes.data || [];
   const room = items.find(function (item) {
     return String(item.TypeID) === String(roomTypeId);
   });
@@ -141,7 +174,12 @@ async function loadApartment() {
   if (!room) return;
 
   CURRENT_ROOM = room;
+  CURRENT_TYPE_ROOMS = rooms.filter(function (item) {
+    return String(item.TypeID) === String(roomTypeId) && String(item.Status || 'Active') === 'Active';
+  });
+
   renderRoom(room);
+  renderTypeRooms(CURRENT_TYPE_ROOMS);
   setupBookingForm(room.TypeID);
   setupAvailabilityCheck(room.TypeID);
 }
@@ -152,12 +190,17 @@ function renderRoom(room) {
   const fullDescription = getLocalizedField(room, 'FullDescription');
   const shortDescription = getLocalizedField(room, 'ShortDescription');
   const amenities = getLocalizedField(room, 'Amenities');
+  const images = getAllImages(room);
 
   document.title = name + ' — Mamu Luxury Apartments';
   document.getElementById('roomCategory').textContent = category;
   document.getElementById('roomName').textContent = name;
   document.getElementById('roomDescription').textContent = fullDescription || shortDescription || '';
-  document.getElementById('roomMainImage').src = room.MainImage || document.getElementById('roomMainImage').src;
+  document.getElementById('roomMainImage').src = images[0];
+  document.getElementById('roomMainImage').onerror = function () {
+    this.onerror = null;
+    this.src = FALLBACK_APARTMENT_IMAGE;
+  };
   document.getElementById('detailRoomTypeId').value = room.TypeID;
   document.getElementById('roomMeta').innerHTML =
     '<span>👥 ' + escapeHtml(room.Guests) + '</span>' +
@@ -167,16 +210,69 @@ function renderRoom(room) {
     '<span>💎 ₾' + escapeHtml(room.Price) + '</span>';
 
   renderAmenities(amenities);
+  renderImageGallery(images, name);
+}
 
+function renderImageGallery(images, name) {
   const gallery = document.getElementById('detailGallery');
-  gallery.innerHTML = '';
-  const images = [room.MainImage].concat(splitGallery(room.GalleryImages));
+  if (!gallery) return;
 
-  images.filter(Boolean).forEach(function (url) {
+  gallery.innerHTML = '';
+
+  images.forEach(function (url, index) {
     const card = document.createElement('article');
     card.className = 'card';
-    card.innerHTML = '<img src="' + escapeHtml(url) + '" alt="' + escapeHtml(name) + '">';
+    card.innerHTML = '<img src="' + escapeHtml(url) + '" alt="' + escapeHtml(name) + '" loading="lazy" onerror="this.onerror=null;this.src=\'' + FALLBACK_APARTMENT_IMAGE + '\';">';
+    card.addEventListener('click', function () {
+      document.getElementById('roomMainImage').src = url;
+      document.getElementById('roomMainImage').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
     gallery.appendChild(card);
+  });
+}
+
+function renderTypeRooms(rooms) {
+  let section = document.getElementById('typeRoomsSection');
+
+  if (!section) {
+    const gallerySection = document.getElementById('detailGallery').closest('.section');
+    section = document.createElement('section');
+    section.className = 'section';
+    section.id = 'typeRoomsSection';
+    section.innerHTML =
+      '<div class="section-head">' +
+        '<span class="eyebrow">Rooms</span>' +
+        '<h2 class="section-title" id="typeRoomsTitle"></h2>' +
+      '</div>' +
+      '<div class="grid" id="typeRoomsGrid"></div>';
+    gallerySection.parentNode.insertBefore(section, gallerySection.nextSibling);
+  }
+
+  const title = document.getElementById('typeRoomsTitle');
+  const grid = document.getElementById('typeRoomsGrid');
+  if (!title || !grid) return;
+
+  title.textContent = tr('rooms_title');
+  grid.innerHTML = '';
+
+  if (!rooms.length) {
+    grid.innerHTML = '<div class="empty-state">' + tr('no_rooms') + '</div>';
+    return;
+  }
+
+  rooms.forEach(function (room) {
+    const card = document.createElement('article');
+    card.className = 'card';
+    card.innerHTML =
+      '<div class="card-content">' +
+        '<h3>№ ' + escapeHtml(room.RoomNumber) + '</h3>' +
+        '<p>' + escapeHtml(room.Note || '') + '</p>' +
+        '<div class="meta">' +
+          '<span>🏢 ' + escapeHtml(room.Floor) + '</span>' +
+          '<span>✅ ' + escapeHtml(room.Status) + '</span>' +
+        '</div>' +
+      '</div>';
+    grid.appendChild(card);
   });
 }
 
