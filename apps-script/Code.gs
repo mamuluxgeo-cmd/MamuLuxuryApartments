@@ -44,10 +44,25 @@ const HEADERS = {
   Logs: ['CreatedAt', 'Action', 'Details']
 };
 
+const VALIDATIONS = {
+  ROOM_TYPE_STATUS: ['Active', 'Inactive'],
+  YES_NO: ['Yes', 'No'],
+  ROOM_STATUS: ['Active', 'Inactive', 'Maintenance'],
+  BOOKING_STATUS: ['New', 'Confirmed', 'CheckedIn', 'CheckedOut', 'Cancelled', 'NoShow'],
+  BLOCK_SOURCE: ['Booking.com', 'Airbnb', 'Expedia', 'WhatsApp', 'Phone', 'Walk-in', 'Maintenance', 'Owner', 'Other'],
+  BLOCK_STATUS: ['Active', 'Cancelled', 'Completed'],
+  GALLERY_CATEGORY: ['Room', 'Reception', 'Terrace', 'Lobby', 'View', 'Interior', 'Exterior', 'Other'],
+  GALLERY_STATUS: ['Active', 'Inactive'],
+  VIDEO_CATEGORY: ['Apartment', 'General', 'Review', 'Other'],
+  VIDEO_STATUS: ['Active', 'Inactive'],
+  ADMIN_STATUS: ['Active', 'Inactive']
+};
+
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Mamu Luxury')
     .addItem('Setup / განახლება', 'setupMamuLuxurySystem')
+    .addItem('Fix validations only', 'fixValidationsOnly')
     .addItem('Add sample data', 'addSampleData')
     .addItem('Clear demo data', 'clearDemoData')
     .addToUi();
@@ -58,38 +73,59 @@ function setupMamuLuxurySystem() {
 
   Object.keys(HEADERS).forEach(function(sheetName) {
     const sheet = getOrCreateSheet_(ss, sheetName);
+    clearSheetValidations_(sheet);
     setupHeaders_(sheet, HEADERS[sheetName]);
     freezeAndStyle_(sheet);
   });
 
   setupSettings_(ss.getSheetByName(SHEETS.SETTINGS));
   setupAdmins_(ss.getSheetByName(SHEETS.ADMINS));
+  sanitizeValidationColumns_(ss);
   setupValidations_(ss);
   addSampleData();
-  log_('SETUP', 'RoomTypes, Rooms, Bookings, ManualBlocks system initialized');
+  log_('SETUP', 'System initialized or updated');
 
-  SpreadsheetApp.getUi().alert('მზადაა! შეიქმნა RoomTypes, Rooms, Bookings, ManualBlocks და ყველა საჭირო ფურცელი.');
+  SpreadsheetApp.getUi().alert('მზადაა! სისტემა განახლდა და validation შეცდომები გასუფთავდა.');
+}
+
+function fixValidationsOnly() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  Object.keys(HEADERS).forEach(function(sheetName) {
+    const sheet = ss.getSheetByName(sheetName);
+    if (sheet) clearSheetValidations_(sheet);
+  });
+  sanitizeValidationColumns_(ss);
+  setupValidations_(ss);
+  SpreadsheetApp.getUi().alert('Validation წესები გასწორებულია. ახლა ისევ გაუშვი Setup / განახლება.');
 }
 
 function getOrCreateSheet_(ss, name) {
   return ss.getSheetByName(name) || ss.insertSheet(name);
 }
 
+function clearSheetValidations_(sheet) {
+  if (!sheet) return;
+  const rows = Math.max(sheet.getMaxRows(), 1);
+  const cols = Math.max(sheet.getMaxColumns(), 1);
+  sheet.getRange(1, 1, rows, cols).clearDataValidations();
+}
+
 function setupHeaders_(sheet, headers) {
-  const existingValues = sheet.getLastColumn() ? sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0] : [];
-  const oldData = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues() : [];
+  const lastCol = Math.max(sheet.getLastColumn(), 1);
+  const existingHeaders = sheet.getLastRow() >= 1 ? sheet.getRange(1, 1, 1, lastCol).getValues()[0] : [];
+  const oldData = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, lastCol).getValues() : [];
 
   if (!oldData.length) {
+    sheet.clearContents();
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
     return;
   }
 
   const remappedRows = oldData.map(function(row) {
     const objectRow = {};
-    existingValues.forEach(function(header, index) {
+    existingHeaders.forEach(function(header, index) {
       if (header) objectRow[header] = row[index];
     });
-
     return headers.map(function(header) {
       return objectRow[header] !== undefined ? objectRow[header] : '';
     });
@@ -102,6 +138,7 @@ function setupHeaders_(sheet, headers) {
 
 function freezeAndStyle_(sheet) {
   const lastCol = sheet.getLastColumn();
+  if (lastCol < 1) return;
   sheet.setFrozenRows(1);
   sheet.getRange(1, 1, 1, lastCol)
     .setFontWeight('bold')
@@ -139,24 +176,48 @@ function setupAdmins_(sheet) {
   sheet.appendRow(['admin', 'change-me-123', 'owner', 'Active', new Date()]);
 }
 
+function sanitizeValidationColumns_(ss) {
+  sanitizeColumn_(ss.getSheetByName(SHEETS.GALLERY), 4, VALIDATIONS.GALLERY_CATEGORY, 'Other');
+  sanitizeColumn_(ss.getSheetByName(SHEETS.GALLERY), 5, VALIDATIONS.GALLERY_STATUS, 'Active');
+  sanitizeColumn_(ss.getSheetByName(SHEETS.ROOM_TYPES), 31, VALIDATIONS.ROOM_TYPE_STATUS, 'Active');
+  sanitizeColumn_(ss.getSheetByName(SHEETS.ROOM_TYPES), 32, VALIDATIONS.YES_NO, 'Yes');
+  sanitizeColumn_(ss.getSheetByName(SHEETS.ROOMS), 5, VALIDATIONS.ROOM_STATUS, 'Active');
+  sanitizeColumn_(ss.getSheetByName(SHEETS.VIDEOS), 4, VALIDATIONS.VIDEO_CATEGORY, 'General');
+  sanitizeColumn_(ss.getSheetByName(SHEETS.VIDEOS), 5, VALIDATIONS.VIDEO_STATUS, 'Active');
+}
+
+function sanitizeColumn_(sheet, column, allowedValues, fallback) {
+  if (!sheet || sheet.getLastRow() < 2) return;
+  const range = sheet.getRange(2, column, sheet.getLastRow() - 1, 1);
+  const values = range.getValues().map(function(row) {
+    const value = String(row[0] || '').trim();
+    if (!value) return [fallback];
+    return allowedValues.indexOf(value) !== -1 ? [value] : [fallback];
+  });
+  range.setValues(values);
+}
+
 function setupValidations_(ss) {
-  setValidation_(ss.getSheetByName(SHEETS.ROOM_TYPES), 31, ['Active', 'Inactive']);
-  setValidation_(ss.getSheetByName(SHEETS.ROOM_TYPES), 32, ['Yes', 'No']);
-  setValidation_(ss.getSheetByName(SHEETS.ROOMS), 5, ['Active', 'Inactive', 'Maintenance']);
-  setValidation_(ss.getSheetByName(SHEETS.BOOKINGS), 16, ['New', 'Confirmed', 'CheckedIn', 'CheckedOut', 'Cancelled', 'NoShow']);
-  setValidation_(ss.getSheetByName(SHEETS.MANUAL_BLOCKS), 8, ['Booking.com', 'Airbnb', 'Expedia', 'WhatsApp', 'Phone', 'Walk-in', 'Maintenance', 'Owner', 'Other']);
-  setValidation_(ss.getSheetByName(SHEETS.MANUAL_BLOCKS), 11, ['Active', 'Cancelled', 'Completed']);
-  setValidation_(ss.getSheetByName(SHEETS.GALLERY), 4, ['Room', 'Reception', 'Terrace', 'Lobby', 'View', 'Interior', 'Exterior', 'Other']);
-  setValidation_(ss.getSheetByName(SHEETS.GALLERY), 5, ['Active', 'Inactive']);
-  setValidation_(ss.getSheetByName(SHEETS.VIDEOS), 4, ['Apartment', 'General', 'Review', 'Other']);
-  setValidation_(ss.getSheetByName(SHEETS.VIDEOS), 5, ['Active', 'Inactive']);
-  setValidation_(ss.getSheetByName(SHEETS.ADMINS), 4, ['Active', 'Inactive']);
+  setValidation_(ss.getSheetByName(SHEETS.ROOM_TYPES), 31, VALIDATIONS.ROOM_TYPE_STATUS);
+  setValidation_(ss.getSheetByName(SHEETS.ROOM_TYPES), 32, VALIDATIONS.YES_NO);
+  setValidation_(ss.getSheetByName(SHEETS.ROOMS), 5, VALIDATIONS.ROOM_STATUS);
+  setValidation_(ss.getSheetByName(SHEETS.BOOKINGS), 16, VALIDATIONS.BOOKING_STATUS);
+  setValidation_(ss.getSheetByName(SHEETS.MANUAL_BLOCKS), 8, VALIDATIONS.BLOCK_SOURCE);
+  setValidation_(ss.getSheetByName(SHEETS.MANUAL_BLOCKS), 11, VALIDATIONS.BLOCK_STATUS);
+  setValidation_(ss.getSheetByName(SHEETS.GALLERY), 4, VALIDATIONS.GALLERY_CATEGORY);
+  setValidation_(ss.getSheetByName(SHEETS.GALLERY), 5, VALIDATIONS.GALLERY_STATUS);
+  setValidation_(ss.getSheetByName(SHEETS.VIDEOS), 4, VALIDATIONS.VIDEO_CATEGORY);
+  setValidation_(ss.getSheetByName(SHEETS.VIDEOS), 5, VALIDATIONS.VIDEO_STATUS);
+  setValidation_(ss.getSheetByName(SHEETS.ADMINS), 4, VALIDATIONS.ADMIN_STATUS);
 }
 
 function setValidation_(sheet, column, values) {
   if (!sheet) return;
+  const rowCount = Math.max(sheet.getMaxRows() - 1, 1);
+  const range = sheet.getRange(2, column, rowCount, 1);
+  range.clearDataValidations();
   const rule = SpreadsheetApp.newDataValidation().requireValueInList(values, true).setAllowInvalid(false).build();
-  sheet.getRange(2, column, Math.max(sheet.getMaxRows() - 1, 1)).setDataValidation(rule);
+  range.setDataValidation(rule);
 }
 
 function addSampleData() {
@@ -168,21 +229,45 @@ function addSampleData() {
 }
 
 function seedRoomTypes_(sheet) {
-  if (sheet.getLastRow() > 1) return;
+  if (!sheet || sheet.getLastRow() > 1) return;
   const now = new Date();
   const img = 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80';
   const rows = [
-    ['TYPE-A', '1 Bedroom Apartment', '1 საძინებლიანი აპარტამენტი', '1 Bedroom Apartment', 'Апартаменты с 1 спальней', 'One Bedroom', 'ერთი საძინებელი', 'One Bedroom', 'Одна спальня', 'კომფორტული 1 საძინებლიანი აპარტამენტი', 'კომფორტული 1 საძინებლიანი აპარტამენტი', 'Comfortable 1 bedroom apartment', 'Комфортные апартаменты с 1 спальней', 'პრემიუმ სტილის 1 საძინებლიანი აპარტამენტი კომფორტული დასვენებისთვის.', 'პრემიუმ სტილის 1 საძინებლიანი აპარტამენტი კომფორტული დასვენებისთვის.', 'Premium 1 bedroom apartment for a comfortable stay.', 'Апартаменты премиум-стиля с 1 спальней для комфортного отдыха.', 'Wi-Fi, კონდიციონერი, სამზარეულო, აივანი', 'Wi-Fi, კონდიციონერი, სამზარეულო, აივანი', 'Wi-Fi, air conditioning, kitchen, balcony', 'Wi-Fi, кондиционер, кухня, балкон', 180, '', 3, 1, 1, '45 m²', img, '', '', 'Active', 'Yes', 1, now, now],
-    ['TYPE-B', '2 Bedroom Apartment Style 1', '2 საძინებლიანი აპარტამენტი — სტილი 1', '2 Bedroom Apartment Style 1', 'Апартаменты с 2 спальнями — стиль 1', 'Two Bedroom', 'ორი საძინებელი', 'Two Bedroom', 'Две спальни', 'ფართო 2 საძინებლიანი აპარტამენტი', 'ფართო 2 საძინებლიანი აპარტამენტი ოჯახისთვის ან მეგობრებისთვის.', 'Spacious 2 bedroom apartment', 'Просторные апартаменты с 2 спальнями', 'ფართო 2 საძინებლიანი აპარტამენტი ოჯახისთვის ან მეგობრებისთვის.', 'ფართო 2 საძინებლიანი აპარტამენტი ოჯახისთვის ან მეგობრებისთვის.', 'Spacious 2 bedroom apartment for family or friends.', 'Просторные апартаменты с 2 спальнями для семьи или друзей.', 'Wi-Fi, კონდიციონერი, სამზარეულო, აივანი', 'Wi-Fi, კონდიციონერი, სამზარეულო, აივანი', 'Wi-Fi, air conditioning, kitchen, balcony', 'Wi-Fi, кондиционер, кухня, балкон', 260, '', 5, 2, 1, '70 m²', img, '', '', 'Active', 'Yes', 2, now, now],
-    ['TYPE-C', '2 Bedroom Apartment Style 2', '2 საძინებლიანი აპარტამენტი — სტილი 2', '2 Bedroom Apartment Style 2', 'Апартаменты с 2 спальнями — стиль 2', 'Two Bedroom', 'ორი საძინებელი', 'Two Bedroom', 'Две спальни', 'განსხვავებული დიზაინის 2 საძინებლიანი აპარტამენტი', 'განსხვავებული დიზაინის 2 საძინებლიანი აპარტამენტი კომფორტული სივრცით.', '2 bedroom apartment with a different design', 'Апартаменты с 2 спальнями и другим дизайном', 'განსხვავებული დიზაინის 2 საძინებლიანი აპარტამენტი კომფორტული სივრცით.', 'განსხვავებული დიზაინის 2 საძინებლიანი აპარტამენტი კომფორტული სივრცით.', 'A comfortable 2 bedroom apartment with a different design.', 'Комфортные апартаменты с 2 спальнями и другим дизайном.', 'Wi-Fi, კონდიციონერი, სამზარეულო, აივანი', 'Wi-Fi, კონდიციონერი, სამზარეულო, აივანი', 'Wi-Fi, air conditioning, kitchen, balcony', 'Wi-Fi, кондиционер, кухня, балкон', 280, '', 5, 2, 1, '75 m²', img, '', '', 'Active', 'Yes', 3, now, now],
-    ['TYPE-D', '2 Bedroom Apartment Style 3', '2 საძინებლიანი აპარტამენტი — სტილი 3', '2 Bedroom Apartment Style 3', 'Апартаменты с 2 спальнями — стиль 3', 'Two Bedroom', 'ორი საძინებელი', 'Two Bedroom', 'Две спальни', 'ელეგანტური 2 საძინებლიანი აპარტამენტი', 'ელეგანტური 2 საძინებლიანი აპარტამენტი განსხვავებული ინტერიერით.', 'Elegant 2 bedroom apartment', 'Элегантные апартаменты с 2 спальнями', 'ელეგანტური 2 საძინებლიანი აპარტამენტი განსხვავებული ინტერიერით.', 'ელეგანტური 2 საძინებლიანი აპარტამენტი განსხვავებული ინტერიერით.', 'Elegant 2 bedroom apartment with a distinctive interior.', 'Элегантные апартаменты с 2 спальнями и особым интерьером.', 'Wi-Fi, კონდიციონერი, სამზარეულო, აივანი', 'Wi-Fi, კონდიციონერი, სამზარეულო, აივანი', 'Wi-Fi, air conditioning, kitchen, balcony', 'Wi-Fi, кондиционер, кухня, балкон', 300, '', 5, 2, 1, '80 m²', img, '', '', 'Active', 'Yes', 4, now, now],
-    ['VIP', 'VIP 1 Bedroom Apartment', 'VIP 1 საძინებლიანი აპარტამენტი', 'VIP 1 Bedroom Apartment', 'VIP апартаменты с 1 спальней', 'VIP', 'VIP', 'VIP', 'VIP', 'VIP 1 საძინებლიანი აპარტამენტი', 'განსაკუთრებული VIP აპარტამენტი პრემიუმ დეტალებით და გამორჩეული კომფორტით.', 'VIP 1 bedroom apartment', 'VIP апартаменты с 1 спальней', 'განსაკუთრებული VIP აპარტამენტი პრემიუმ დეტალებით და გამორჩეული კომფორტით.', 'განსაკუთრებული VIP აპარტამენტი პრემიუმ დეტალებით და გამორჩეული კომფორტით.', 'Special VIP apartment with premium details and comfort.', 'Особые VIP апартаменты с премиальными деталями и комфортом.', 'Wi-Fi, კონდიციონერი, VIP სივრცე, აივანი', 'Wi-Fi, კონდიციონერი, VIP სივრცე, აივანი', 'Wi-Fi, air conditioning, VIP space, balcony', 'Wi-Fi, кондиционер, VIP пространство, балкон', 450, '', 3, 1, 1, '60 m²', img, '', '', 'Active', 'Yes', 5, now, now]
+    makeRoomTypeRow_('TYPE-A', '1 საძინებლიანი აპარტამენტი', '1 Bedroom Apartment', 'Апартаменты с 1 спальней', 150, 2, 1, 1, '45 m²', img, 1),
+    makeRoomTypeRow_('TYPE-B', '2 საძინებლიანი აპარტამენტი — სტილი 1', '2 Bedroom Apartment Style 1', 'Апартаменты с 2 спальнями — стиль 1', 260, 5, 2, 1, '70 m²', img, 2),
+    makeRoomTypeRow_('TYPE-C', '2 საძინებლიანი აპარტამენტი — სტილი 2', '2 Bedroom Apartment Style 2', 'Апартаменты с 2 спальнями — стиль 2', 280, 5, 2, 1, '75 m²', img, 3),
+    makeRoomTypeRow_('TYPE-D', '2 საძინებლიანი აპარტამენტი — სტილი 3', '2 Bedroom Apartment Style 3', 'Апартаменты с 2 спальнями — стиль 3', 300, 5, 2, 1, '80 m²', img, 4),
+    makeRoomTypeRow_('VIP', 'VIP 1 საძინებლიანი აპარტამენტი', 'VIP 1 Bedroom Apartment', 'VIP апартаменты с 1 спальней', 450, 3, 1, 1, '60 m²', img, 5)
   ];
   sheet.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
 }
 
+function makeRoomTypeRow_(typeId, nameKa, nameEn, nameRu, price, guests, bedrooms, bathrooms, area, image, sortOrder) {
+  const now = new Date();
+  const shortKa = 'კომფორტული აპარტამენტი მშვიდი დასვენებისთვის.';
+  const shortEn = 'A comfortable apartment for a relaxing stay.';
+  const shortRu = 'Комфортные апартаменты для спокойного отдыха.';
+  const fullKa = 'მყუდრო და კომფორტული აპარტამენტი — იდეალური არჩევანი დასვენებისთვის.';
+  const fullEn = 'A cozy and comfortable apartment — an ideal choice for a relaxing stay.';
+  const fullRu = 'Уютные и комфортные апартаменты — идеальный выбор для отдыха.';
+  const amenitiesKa = 'Wi-Fi, ტელეფონი, კონდიციონერი, ცენტრალური გათბობა, აივანი, სრულად აღჭურვილი სამზარეულო, სამზარეულოს ინვენტარი, მაცივარი, ელექტრო ქურა, სარეცხი მანქანა';
+  const amenitiesEn = 'Wi-Fi, telephone, air conditioning, central heating, balcony, fully equipped kitchen, kitchenware, refrigerator, electric stove, washing machine';
+  const amenitiesRu = 'Wi-Fi, телефон, кондиционер, центральное отопление, балкон, полностью оборудованная кухня, кухонные принадлежности, холодильник, электрическая плита, стиральная машина';
+
+  return [
+    typeId, nameKa, nameKa, nameEn, nameRu,
+    'Apartment', 'აპარტამენტი', 'Apartment', 'Апартаменты',
+    shortKa, shortKa, shortEn, shortRu,
+    fullKa, fullKa, fullEn, fullRu,
+    amenitiesKa, amenitiesKa, amenitiesEn, amenitiesRu,
+    price, '', guests, bedrooms, bathrooms, area,
+    image, '', '',
+    'Active', 'Yes', sortOrder, now, now
+  ];
+}
+
 function seedRooms_(sheet) {
-  if (sheet.getLastRow() > 1) return;
+  if (!sheet || sheet.getLastRow() > 1) return;
   const now = new Date();
   const rooms = [];
   for (let i = 1; i <= 5; i++) rooms.push(['ROOM-A' + i, '10' + i, 'TYPE-A', 1, 'Active', '', now, now]);
@@ -194,12 +279,12 @@ function seedRooms_(sheet) {
 }
 
 function seedGallery_(sheet) {
-  if (sheet.getLastRow() > 1) return;
+  if (!sheet || sheet.getLastRow() > 1) return;
   sheet.appendRow(['GAL001', 'Luxury Interior', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80', 'Interior', 'Active', 1, new Date(), new Date()]);
 }
 
 function seedVideos_(sheet) {
-  if (sheet.getLastRow() > 1) return;
+  if (!sheet || sheet.getLastRow() > 1) return;
   sheet.appendRow(['VID001', 'Mamu Luxury Apartments Video', '', 'General', 'Inactive', 1, new Date(), new Date()]);
 }
 
@@ -257,7 +342,8 @@ function handlePostAction_(payload) {
   if (action === 'upsertGallery') return upsertRow_(SHEETS.GALLERY, 'ID', payload.data);
   if (action === 'upsertVideo') return upsertRow_(SHEETS.VIDEOS, 'ID', payload.data);
   if (action === 'updateSetting') return updateSetting_(payload.key, payload.value);
-  return json_({ success: false, error: 'Unknown action' });
+  if (action === 'uploadImage') return uploadImage_(payload);
+  return json_({ success: false, error: 'Unknown action: ' + action });
 }
 
 function normalizeRoomTypeData_(data) {
@@ -268,6 +354,47 @@ function normalizeRoomTypeData_(data) {
   data.FullDescription = data.FullDescription || data.FullDescription_KA || data.FullDescription_EN || data.FullDescription_RU || '';
   data.Amenities = data.Amenities || data.Amenities_KA || data.Amenities_EN || data.Amenities_RU || '';
   return data;
+}
+
+function uploadImage_(payload) {
+  try {
+    const settings = getSettings_();
+    const apiKey = settings.imgbb_api_key || '104cf2ebb4a05c7908280dff041c8609';
+    if (!apiKey) return json_({ success: false, error: 'ImgBB API key არ არის მითითებული Settings ფურცელში.' });
+
+    const raw = String(payload.imageBase64 || '');
+    if (!raw) return json_({ success: false, error: 'ფოტო არ არის მიღებული.' });
+
+    const base64 = raw.indexOf(',') !== -1 ? raw.split(',').pop() : raw;
+    const fileName = String(payload.fileName || 'mamu-luxury-apartment').replace(/\.[^.]+$/, '').slice(0, 80);
+
+    const response = UrlFetchApp.fetch('https://api.imgbb.com/1/upload?key=' + encodeURIComponent(apiKey), {
+      method: 'post',
+      muteHttpExceptions: true,
+      payload: {
+        image: base64,
+        name: fileName
+      }
+    });
+
+    const code = response.getResponseCode();
+    const text = response.getContentText();
+    const result = JSON.parse(text || '{}');
+
+    if (code < 200 || code >= 300 || !result.success) {
+      const message = result && result.error && result.error.message ? result.error.message : 'ImgBB ატვირთვის შეცდომა';
+      return json_({ success: false, error: message });
+    }
+
+    return json_({
+      success: true,
+      url: result.data && result.data.url ? result.data.url : '',
+      displayUrl: result.data && result.data.display_url ? result.data.display_url : '',
+      deleteUrl: result.data && result.data.delete_url ? result.data.delete_url : ''
+    });
+  } catch (error) {
+    return json_({ success: false, error: String(error) });
+  }
 }
 
 function createBooking_(data) {
