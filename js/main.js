@@ -24,7 +24,12 @@ const I18N = {
     details_btn: 'მეტის ნახვა',
     book_btn: 'დაჯავშნა',
     sending: 'იგზავნება...',
-    success: 'მოთხოვნა მიღებულია. დაჯავშნის ნომერი: '
+    success: 'მოთხოვნა მიღებულია. დაჯავშნის ნომერი: ',
+    nights_label: 'ღამე',
+    night_price_label: '1 ღამის ფასი',
+    total_label: 'ჯამი',
+    choose_dates_label: 'აირჩიე თარიღები — ღამეებისა და ჯამის სანახავად.',
+    invalid_dates_label: 'გასვლის თარიღი უნდა იყოს შესვლის თარიღზე გვიანი.'
   },
   en: {
     nav_rooms: 'Rooms',
@@ -51,7 +56,12 @@ const I18N = {
     details_btn: 'View Details',
     book_btn: 'Book',
     sending: 'Sending...',
-    success: 'Request received. Booking ID: '
+    success: 'Request received. Booking ID: ',
+    nights_label: 'Nights',
+    night_price_label: 'Price per night',
+    total_label: 'Total',
+    choose_dates_label: 'Choose dates to see nights and total price.',
+    invalid_dates_label: 'Check-out date must be after check-in date.'
   },
   ru: {
     nav_rooms: 'Номера',
@@ -78,7 +88,12 @@ const I18N = {
     details_btn: 'Подробнее',
     book_btn: 'Забронировать',
     sending: 'Отправка...',
-    success: 'Запрос получен. Номер бронирования: '
+    success: 'Запрос получен. Номер бронирования: ',
+    nights_label: 'Ночей',
+    night_price_label: 'Цена за ночь',
+    total_label: 'Итого',
+    choose_dates_label: 'Выберите даты, чтобы увидеть ночи и итоговую сумму.',
+    invalid_dates_label: 'Дата выезда должна быть позже даты заезда.'
   }
 };
 
@@ -90,7 +105,7 @@ const CURRENCY = {
 
 const DEFAULT_UNSPLASH_IMAGE = 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80';
 const FALLBACK_ROOM_IMAGE = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800"><rect width="1200" height="800" fill="#111827"/><text x="600" y="385" text-anchor="middle" fill="#f4d35e" font-family="Arial" font-size="44" font-weight="700">ფოტო არ არის ატვირთული</text><text x="600" y="445" text-anchor="middle" fill="#cbd5e1" font-family="Arial" font-size="26">ატვირთე ფოტო RoomTypes-ში MainImage ან GalleryImages ველში</text></svg>'
+  '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800"><rect width="1200" height="800" fill="#111827"/><text x="600" y="385" text-anchor="middle" fill="#f4d35e" font-family="Arial" font-size="44" font-weight="700">ფოტო არ არის ატვირთული</text></svg>'
 );
 
 let CURRENT_LANG = localStorage.getItem('site_lang') || 'ka';
@@ -98,16 +113,51 @@ let CURRENT_CURRENCY = localStorage.getItem('site_currency') || 'GEL';
 let LAST_ROOM_TYPES = [];
 let GALLERY_ITEMS = [];
 let GALLERY_INDEX = 0;
-let GALLERY_TIMER = null;
 let LIGHTBOX_OPEN = false;
 
 function t(key) {
   return (I18N[CURRENT_LANG] && I18N[CURRENT_LANG][key]) || I18N.ka[key] || key;
 }
 
+function safeText(value) {
+  return String(value || '').replace(/[&<>"']/g, function (char) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char];
+  });
+}
+
+function isUrlLike(value) {
+  const text = String(value || '').trim();
+  if (!text) return false;
+  return /^https?:\/\//i.test(text) || /images\.unsplash\.com|drive\.google\.com|googleusercontent\.com|imgbb\.com|ibb\.co/i.test(text);
+}
+
+function cleanText(value) {
+  const text = String(value || '').trim();
+  return isUrlLike(text) ? '' : text;
+}
+
+function getLocalizedField(item, baseName) {
+  item = item || {};
+  const suffix = '_' + CURRENT_LANG.toUpperCase();
+  const candidates = [
+    item[baseName + suffix],
+    item[baseName],
+    item[baseName + '_KA'],
+    item[baseName + '_EN'],
+    item[baseName + '_RU']
+  ];
+
+  for (let i = 0; i < candidates.length; i += 1) {
+    const value = cleanText(candidates[i]);
+    if (value) return value;
+  }
+
+  return '';
+}
+
 function formatPriceGel(priceGel) {
   const currency = CURRENCY[CURRENT_CURRENCY] || CURRENCY.GEL;
-  const amount = Math.round(Number(priceGel || 0) * currency.rate);
+  const amount = Math.round(Number(priceGel || 0) * Number(currency.rate || 1));
   return currency.symbol + amount.toLocaleString('ka-GE');
 }
 
@@ -129,6 +179,7 @@ function setCurrency(currency) {
   if (LAST_ROOM_TYPES.length) {
     renderRoomTypes(LAST_ROOM_TYPES);
     populateBookingRoomTypes(LAST_ROOM_TYPES);
+    updateBookingSummary();
   }
 }
 
@@ -149,17 +200,17 @@ function setLanguage(lang) {
   document.querySelectorAll('.language-switcher button[data-lang]').forEach(function (btn) {
     btn.classList.toggle('active', btn.dataset.lang === CURRENT_LANG);
   });
+
+  if (LAST_ROOM_TYPES.length) {
+    renderRoomTypes(LAST_ROOM_TYPES);
+    populateBookingRoomTypes(LAST_ROOM_TYPES);
+    updateBookingSummary();
+  }
 }
 
 function initLanguageSwitcher() {
   document.querySelectorAll('.language-switcher button[data-lang]').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      setLanguage(this.dataset.lang);
-      if (LAST_ROOM_TYPES.length) {
-        renderRoomTypes(LAST_ROOM_TYPES);
-        populateBookingRoomTypes(LAST_ROOM_TYPES);
-      }
-    });
+    btn.addEventListener('click', function () { setLanguage(this.dataset.lang); });
   });
   setLanguage(CURRENT_LANG);
 }
@@ -174,21 +225,10 @@ function toggleTheme() {
   setTheme(currentTheme === 'night' ? 'day' : 'night');
 }
 
-function safeText(value) {
-  return String(value || '').replace(/[&<>]/g, function (char) {
-    return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[char];
-  });
-}
-
 function getYouTubeEmbedUrl(url) {
   const text = String(url || '');
   const match = text.match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
   return match ? 'https://www.youtube.com/embed/' + match[1] : '';
-}
-
-function getLocalizedField(item, baseName) {
-  const suffix = '_' + CURRENT_LANG.toUpperCase();
-  return item[baseName + suffix] || item[baseName] || '';
 }
 
 function normalizeImageUrl(url) {
@@ -197,9 +237,7 @@ function normalizeImageUrl(url) {
 
   text = text.replace(/&amp;/g, '&');
 
-  if (/drive\.google\.com\/thumbnail\?/i.test(text)) {
-    return text;
-  }
+  if (/drive\.google\.com\/thumbnail\?/i.test(text)) return text;
 
   const driveFileMatch = text.match(/drive\.google\.com\/file\/d\/([^/]+)/i);
   const driveIdMatch = text.match(/[?&]id=([A-Za-z0-9_-]{20,})/);
@@ -219,8 +257,7 @@ function splitImageList(value) {
 }
 
 function isDefaultImage(url) {
-  const text = String(url || '');
-  return text.indexOf('images.unsplash.com/photo-1505693416388') !== -1;
+  return String(url || '').indexOf('images.unsplash.com/photo-1505693416388') !== -1;
 }
 
 function addImageCandidate(images, value) {
@@ -238,10 +275,8 @@ function getRoomImages(item) {
 
   Object.keys(item || {}).forEach(function (key) {
     const lower = key.toLowerCase();
-    if (lower.indexOf('image') !== -1 || lower.indexOf('photo') !== -1 || lower.indexOf('url') !== -1) {
-      if (lower.indexOf('youtube') === -1 && lower.indexOf('video') === -1 && lower.indexOf('map') === -1) {
-        addImageCandidate(images, item[key]);
-      }
+    if ((lower.indexOf('image') !== -1 || lower.indexOf('photo') !== -1 || lower.indexOf('url') !== -1) && lower.indexOf('youtube') === -1 && lower.indexOf('video') === -1 && lower.indexOf('map') === -1) {
+      addImageCandidate(images, item[key]);
     }
   });
 
@@ -258,38 +293,47 @@ async function loadSite() {
   setTheme(savedTheme);
   if (!CONFIG.GOOGLE_SCRIPT_URL) return;
 
-  const responses = await Promise.all([
-    apiGet('settings'),
-    apiGet('roomTypes'),
-    apiGet('gallery'),
-    apiGet('videos'),
-    apiGet('exchangeRates')
-  ]);
+  try {
+    const responses = await Promise.all([
+      apiGet('settings'),
+      apiGet('roomTypes'),
+      apiGet('gallery'),
+      apiGet('videos'),
+      apiGet('exchangeRates')
+    ]);
 
-  const settings = responses[0].data || {};
-  const roomTypes = responses[1].data || [];
-  const gallery = responses[2].data || [];
-  const videos = responses[3].data || [];
-  const exchangeRates = responses[4] || {};
+    const settings = responses[0].data || {};
+    const roomTypes = responses[1].data || [];
+    const gallery = responses[2].data || [];
+    const videos = responses[3].data || [];
+    const exchangeRates = responses[4] || {};
 
-  applyExchangeRates(exchangeRates);
+    applyExchangeRates(exchangeRates);
 
-  LAST_ROOM_TYPES = roomTypes;
-  renderSettings(settings);
-  renderRoomTypes(roomTypes);
-  populateBookingRoomTypes(roomTypes);
-  renderGallery(gallery);
-  renderVideos(videos);
-  setupBookingForm();
-  setLanguage(CURRENT_LANG);
-  setCurrency(CURRENT_CURRENCY);
+    LAST_ROOM_TYPES = roomTypes;
+    renderSettings(settings);
+    renderRoomTypes(roomTypes);
+    populateBookingRoomTypes(roomTypes);
+    renderGallery(gallery);
+    renderVideos(videos);
+    setupBookingForm();
+    setLanguage(CURRENT_LANG);
+    setCurrency(CURRENT_CURRENCY);
+    updateBookingSummary();
+  } catch (error) {
+    console.error('Site loading error:', error);
+  }
 }
 
 function renderSettings(settings) {
   document.title = settings.site_title || 'Mamu Luxury Apartments';
-  document.getElementById('siteTitle').textContent = settings.site_title || 'Mamu Luxury Apartments';
-  document.getElementById('heroTitle').textContent = settings.hero_title || 'Mamu Luxury Apartments';
-  document.getElementById('heroSubtitle').textContent = settings.hero_subtitle || '';
+  const siteTitle = document.getElementById('siteTitle');
+  const heroTitle = document.getElementById('heroTitle');
+  const heroSubtitle = document.getElementById('heroSubtitle');
+
+  if (siteTitle) siteTitle.textContent = settings.site_title || 'Mamu Luxury Apartments';
+  if (heroTitle) heroTitle.textContent = settings.hero_title || 'Mamu Luxury Apartments';
+  if (heroSubtitle) heroSubtitle.textContent = settings.hero_subtitle || '';
 
   const phone = settings.phone || '';
   const whatsapp = settings.whatsapp || '';
@@ -303,7 +347,9 @@ function renderSettings(settings) {
     phoneLink.href = 'tel:' + phone;
     phoneLink.textContent = phone;
   }
+
   if (mapLink) mapLink.href = mapUrl;
+
   if (whatsapp) {
     const whatsappUrl = 'https://wa.me/' + String(whatsapp).replace(/\D/g, '');
     if (whatsappLink) whatsappLink.href = whatsappUrl;
@@ -322,8 +368,9 @@ function renderRoomTypes(items) {
 
     const image = getRoomMainImage(item);
     const detailUrl = 'apartment.html?id=' + encodeURIComponent(item.TypeID);
-    const name = getLocalizedField(item, 'Name');
+    const name = getLocalizedField(item, 'Name') || item.TypeID || '';
     const shortDescription = getLocalizedField(item, 'ShortDescription');
+    const descriptionHtml = shortDescription ? '<p>' + safeText(shortDescription) + '</p>' : '';
 
     article.innerHTML =
       '<a class="card-image-link" href="' + detailUrl + '" aria-label="' + safeText(name) + '">' +
@@ -331,7 +378,7 @@ function renderRoomTypes(items) {
       '</a>' +
       '<div class="card-content">' +
         '<h3>' + safeText(name) + '</h3>' +
-        '<p>' + safeText(shortDescription) + '</p>' +
+        descriptionHtml +
         '<div class="meta">' +
           '<span>👥 ' + safeText(item.Guests) + '</span>' +
           '<span>🛏️ ' + safeText(item.Bedrooms) + '</span>' +
@@ -351,28 +398,30 @@ function renderRoomTypes(items) {
 function selectRoomType(typeId) {
   const select = document.getElementById('bookingRoomType');
   if (select) select.value = typeId;
+  setTimeout(updateBookingSummary, 30);
 }
 
 function populateBookingRoomTypes(items) {
   const select = document.getElementById('bookingRoomType');
   if (!select) return;
 
+  const currentValue = select.value;
   select.innerHTML = '<option value="">' + t('select_room_type') + '</option>';
 
   items.forEach(function (item) {
     const option = document.createElement('option');
     option.value = item.TypeID;
-    option.textContent = getLocalizedField(item, 'Name') + ' — ' + formatPriceGel(item.Price);
+    option.textContent = (getLocalizedField(item, 'Name') || item.TypeID) + ' — ' + formatPriceGel(item.Price);
     select.appendChild(option);
   });
+
+  if (currentValue) select.value = currentValue;
 }
 
 function renderGallery(items) {
   const container = document.getElementById('galleryGrid');
   if (!container) return;
-
-  injectGalleryCarouselStyles();
-  stopGalleryAuto();
+  injectGalleryStyles();
   container.innerHTML = '';
 
   GALLERY_ITEMS = (items || [])
@@ -395,9 +444,8 @@ function renderGallery(items) {
 
   container.innerHTML =
     '<div class="gallery-carousel" id="galleryCarousel">' +
-      '<div class="gallery-main-frame" id="galleryMainFrame" onclick="openGalleryLightbox(GALLERY_INDEX)">' +
+      '<div class="gallery-main-frame" onclick="openGalleryLightbox(GALLERY_INDEX)">' +
         '<img id="galleryCarouselImage" src="" alt="Gallery" loading="lazy">' +
-        '<div class="gallery-gradient"></div>' +
         '<div class="gallery-counter" id="galleryCounter"></div>' +
       '</div>' +
       '<button type="button" class="gallery-nav-btn gallery-prev" onclick="galleryPrev(true)" aria-label="Previous">‹</button>' +
@@ -405,11 +453,10 @@ function renderGallery(items) {
       '<div class="gallery-thumbs" id="galleryThumbs"></div>' +
     '</div>';
 
-  updateGalleryCarousel();
-  startGalleryAuto();
+  updateGalleryCarousel(false);
 }
 
-function updateGalleryCarousel() {
+function updateGalleryCarousel(moveThumbs) {
   if (!GALLERY_ITEMS.length) return;
 
   const item = GALLERY_ITEMS[GALLERY_INDEX];
@@ -418,12 +465,9 @@ function updateGalleryCarousel() {
   const thumbs = document.getElementById('galleryThumbs');
 
   if (image) {
-    image.classList.remove('is-visible');
-    setTimeout(function () {
-      image.src = item.url;
-      image.alt = item.title;
-      image.classList.add('is-visible');
-    }, 80);
+    image.src = item.url;
+    image.alt = item.title;
+    image.classList.add('is-visible');
   }
 
   if (counter) counter.textContent = (GALLERY_INDEX + 1) + ' / ' + GALLERY_ITEMS.length;
@@ -433,8 +477,13 @@ function updateGalleryCarousel() {
       return '<button type="button" class="gallery-thumb' + (index === GALLERY_INDEX ? ' active' : '') + '" onclick="galleryGoTo(' + index + ', true)" aria-label="Photo ' + (index + 1) + '"><img src="' + safeText(photo.url) + '" alt="' + safeText(photo.title) + '"></button>';
     }).join('');
 
-    const activeThumb = thumbs.querySelector('.gallery-thumb.active');
-    if (activeThumb) activeThumb.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    if (moveThumbs) {
+      const activeThumb = thumbs.querySelector('.gallery-thumb.active');
+      if (activeThumb) {
+        const left = activeThumb.offsetLeft - (thumbs.clientWidth / 2) + (activeThumb.offsetWidth / 2);
+        thumbs.scrollTo({ left: Math.max(left, 0), behavior: 'smooth' });
+      }
+    }
   }
 
   updateGalleryLightbox();
@@ -443,8 +492,7 @@ function updateGalleryCarousel() {
 function galleryGoTo(index, manual) {
   if (!GALLERY_ITEMS.length) return;
   GALLERY_INDEX = (index + GALLERY_ITEMS.length) % GALLERY_ITEMS.length;
-  updateGalleryCarousel();
-  if (manual) restartGalleryAuto();
+  updateGalleryCarousel(Boolean(manual));
 }
 
 function galleryNext(manual) {
@@ -453,24 +501,6 @@ function galleryNext(manual) {
 
 function galleryPrev(manual) {
   galleryGoTo(GALLERY_INDEX - 1, manual);
-}
-
-function startGalleryAuto() {
-  stopGalleryAuto();
-  if (GALLERY_ITEMS.length <= 1 || LIGHTBOX_OPEN) return;
-  GALLERY_TIMER = setInterval(function () {
-    galleryNext(false);
-  }, 4200);
-}
-
-function stopGalleryAuto() {
-  if (GALLERY_TIMER) clearInterval(GALLERY_TIMER);
-  GALLERY_TIMER = null;
-}
-
-function restartGalleryAuto() {
-  stopGalleryAuto();
-  startGalleryAuto();
 }
 
 function ensureGalleryLightbox() {
@@ -499,13 +529,12 @@ function openGalleryLightbox(index) {
   if (!GALLERY_ITEMS.length) return;
   GALLERY_INDEX = index;
   LIGHTBOX_OPEN = true;
-  stopGalleryAuto();
 
   const lightbox = ensureGalleryLightbox();
   lightbox.classList.add('open');
   document.body.classList.add('no-scroll');
 
-  updateGalleryCarousel();
+  updateGalleryCarousel(true);
   updateGalleryLightbox();
 }
 
@@ -514,7 +543,6 @@ function closeGalleryLightbox() {
   if (lightbox) lightbox.classList.remove('open');
   LIGHTBOX_OPEN = false;
   document.body.classList.remove('no-scroll');
-  startGalleryAuto();
 }
 
 function updateGalleryLightbox() {
@@ -541,15 +569,14 @@ function bindGalleryKeyboard() {
   });
 }
 
-function injectGalleryCarouselStyles() {
+function injectGalleryStyles() {
   if (document.getElementById('galleryCarouselStyles')) return;
 
   const style = document.createElement('style');
   style.id = 'galleryCarouselStyles';
   style.textContent = `
-    .gallery-grid{display:block}.gallery-carousel{position:relative;width:100%;border:1px solid var(--border);background:linear-gradient(145deg,var(--card),rgba(255,255,255,.035));border-radius:34px;padding:18px;box-shadow:var(--shadow);overflow:hidden}.gallery-main-frame{position:relative;width:100%;aspect-ratio:16/9;border-radius:26px;overflow:hidden;background:rgba(0,0,0,.26);cursor:zoom-in}.gallery-main-frame img{width:100%;height:100%;object-fit:cover;display:block;opacity:0;transform:scale(1.015);transition:opacity .34s ease,transform .5s ease}.gallery-main-frame img.is-visible{opacity:1;transform:scale(1)}.gallery-gradient{position:absolute;inset:0;background:linear-gradient(180deg,transparent 62%,rgba(0,0,0,.45));pointer-events:none}.gallery-counter,.lightbox-counter{position:absolute;right:18px;bottom:18px;padding:9px 14px;border-radius:999px;background:rgba(7,16,31,.72);border:1px solid rgba(255,255,255,.18);color:#fff;font-weight:900;backdrop-filter:blur(14px)}.gallery-nav-btn{position:absolute;top:calc(50% - 34px);z-index:4;width:58px;height:58px;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:rgba(7,16,31,.68);color:#fff;font-size:48px;line-height:1;display:grid;place-items:center;cursor:pointer;backdrop-filter:blur(16px);transition:.22s ease}.gallery-nav-btn:hover{transform:translateY(-2px) scale(1.04);background:linear-gradient(135deg,var(--gold2),var(--gold));color:#111827}.gallery-prev{left:30px}.gallery-next{right:30px}.gallery-thumbs{display:flex;gap:12px;overflow-x:auto;padding:16px 4px 2px;scrollbar-width:thin}.gallery-thumb{flex:0 0 112px;height:76px;border:2px solid transparent;border-radius:16px;overflow:hidden;padding:0;background:transparent;cursor:pointer;opacity:.68;transition:.22s ease}.gallery-thumb img{width:100%;height:100%;object-fit:cover;display:block}.gallery-thumb.active{opacity:1;border-color:var(--gold);box-shadow:0 10px 28px rgba(212,175,55,.25)}.gallery-thumb:hover{opacity:1;transform:translateY(-2px)}.gallery-lightbox{position:fixed;inset:0;z-index:5000;display:none;align-items:center;justify-content:center;background:rgba(2,6,23,.92);backdrop-filter:blur(16px);padding:34px}.gallery-lightbox.open{display:flex}.gallery-lightbox img{max-width:min(1180px,92vw);max-height:86vh;width:auto;height:auto;border-radius:24px;object-fit:contain;box-shadow:0 28px 90px rgba(0,0,0,.62);border:1px solid rgba(255,255,255,.14)}.lightbox-close{position:fixed;top:22px;right:24px;width:52px;height:52px;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.1);color:#fff;font-size:34px;cursor:pointer;z-index:5002}.lightbox-arrow{position:fixed;top:50%;transform:translateY(-50%);width:64px;height:64px;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.1);color:#fff;font-size:54px;line-height:1;display:grid;place-items:center;cursor:pointer;z-index:5002}.lightbox-prev{left:24px}.lightbox-next{right:24px}.lightbox-close:hover,.lightbox-arrow:hover{background:linear-gradient(135deg,var(--gold2),var(--gold));color:#111827}.lightbox-counter{position:fixed;left:50%;right:auto;bottom:26px;transform:translateX(-50%)}.no-scroll{overflow:hidden}@media(max-width:820px){.gallery-carousel{border-radius:24px;padding:10px}.gallery-main-frame{aspect-ratio:4/3;border-radius:18px}.gallery-nav-btn{width:44px;height:44px;font-size:34px;top:calc(50% - 26px)}.gallery-prev{left:16px}.gallery-next{right:16px}.gallery-thumb{flex-basis:78px;height:56px;border-radius:12px}.gallery-lightbox{padding:18px}.lightbox-arrow{width:48px;height:48px;font-size:38px}.lightbox-prev{left:10px}.lightbox-next{right:10px}.lightbox-close{top:12px;right:12px;width:46px;height:46px}.gallery-lightbox img{max-width:94vw;max-height:78vh;border-radius:18px}}
+    .gallery-grid{display:block}.gallery-carousel{position:relative;width:100%;border:1px solid var(--border);background:linear-gradient(145deg,var(--card),rgba(255,255,255,.035));border-radius:34px;padding:18px;box-shadow:var(--shadow);overflow:hidden}.gallery-main-frame{position:relative;width:100%;aspect-ratio:16/9;border-radius:26px;overflow:hidden;background:rgba(0,0,0,.26);cursor:zoom-in}.gallery-main-frame img{width:100%;height:100%;object-fit:cover;display:block}.gallery-counter,.lightbox-counter{position:absolute;right:18px;bottom:18px;padding:9px 14px;border-radius:999px;background:rgba(7,16,31,.72);border:1px solid rgba(255,255,255,.18);color:#fff;font-weight:900;backdrop-filter:blur(14px)}.gallery-nav-btn{position:absolute;top:calc(50% - 34px);z-index:4;width:58px;height:58px;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:rgba(7,16,31,.68);color:#fff;font-size:48px;line-height:1;display:grid;place-items:center;cursor:pointer;backdrop-filter:blur(16px);transition:.22s ease}.gallery-nav-btn:hover{transform:translateY(-2px) scale(1.04);background:linear-gradient(135deg,var(--gold2),var(--gold));color:#111827}.gallery-prev{left:30px}.gallery-next{right:30px}.gallery-thumbs{display:flex;gap:12px;overflow-x:auto;padding:16px 4px 2px;scrollbar-width:thin}.gallery-thumb{flex:0 0 112px;height:76px;border:2px solid transparent;border-radius:16px;overflow:hidden;padding:0;background:transparent;cursor:pointer;opacity:.68;transition:.22s ease}.gallery-thumb img{width:100%;height:100%;object-fit:cover;display:block}.gallery-thumb.active{opacity:1;border-color:var(--gold);box-shadow:0 10px 28px rgba(212,175,55,.25)}.gallery-thumb:hover{opacity:1;transform:translateY(-2px)}.gallery-lightbox{position:fixed;inset:0;z-index:5000;display:none;align-items:center;justify-content:center;background:rgba(2,6,23,.92);backdrop-filter:blur(16px);padding:34px}.gallery-lightbox.open{display:flex}.gallery-lightbox img{max-width:min(1180px,92vw);max-height:86vh;width:auto;height:auto;border-radius:24px;object-fit:contain;box-shadow:0 28px 90px rgba(0,0,0,.62);border:1px solid rgba(255,255,255,.14)}.lightbox-close{position:fixed;top:22px;right:24px;width:52px;height:52px;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.1);color:#fff;font-size:34px;cursor:pointer;z-index:5002}.lightbox-arrow{position:fixed;top:50%;transform:translateY(-50%);width:64px;height:64px;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.1);color:#fff;font-size:54px;line-height:1;display:grid;place-items:center;cursor:pointer;z-index:5002}.lightbox-prev{left:24px}.lightbox-next{right:24px}.lightbox-close:hover,.lightbox-arrow:hover{background:linear-gradient(135deg,var(--gold2),var(--gold));color:#111827}.lightbox-counter{position:fixed;left:50%;right:auto;bottom:26px;transform:translateX(-50%)}.no-scroll{overflow:hidden}@media(max-width:820px){.gallery-carousel{border-radius:24px;padding:10px}.gallery-main-frame{aspect-ratio:4/3;border-radius:18px}.gallery-nav-btn{width:44px;height:44px;font-size:34px;top:calc(50% - 26px)}.gallery-prev{left:16px}.gallery-next{right:16px}.gallery-thumb{flex-basis:78px;height:56px;border-radius:12px}.gallery-lightbox{padding:18px}.lightbox-arrow{width:48px;height:48px;font-size:38px}.lightbox-prev{left:10px}.lightbox-next{right:10px}.lightbox-close{top:12px;right:12px;width:46px;height:46px}.gallery-lightbox img{max-width:94vw;max-height:78vh;border-radius:18px}}
   `;
-
   document.head.appendChild(style);
 }
 
@@ -574,10 +601,14 @@ function setupBookingForm() {
   if (!form || form.dataset.ready === 'true') return;
 
   form.dataset.ready = 'true';
+  ensureBookingSummaryBox();
+
+  form.addEventListener('input', updateBookingSummary);
+  form.addEventListener('change', updateBookingSummary);
 
   form.addEventListener('submit', async function (event) {
     event.preventDefault();
-    status.textContent = t('sending');
+    if (status) status.textContent = t('sending');
 
     const data = Object.fromEntries(new FormData(form).entries());
     data.language = CURRENT_LANG;
@@ -586,12 +617,98 @@ function setupBookingForm() {
     const result = await apiPost('createBooking', data);
 
     if (result.success) {
-      status.textContent = t('success') + result.bookingId;
+      if (status) status.textContent = t('success') + result.bookingId;
       form.reset();
-    } else {
+      updateBookingSummary();
+    } else if (status) {
       status.textContent = result.error || 'Error.';
     }
   });
+}
+
+function ensureBookingSummaryBox() {
+  const form = document.getElementById('bookingForm');
+  if (!form) return null;
+
+  let box = document.getElementById('bookingPriceSummary');
+  if (box) return box;
+
+  box = document.createElement('div');
+  box.id = 'bookingPriceSummary';
+  box.className = 'booking-price-summary';
+  box.textContent = t('choose_dates_label');
+
+  const dateRow = form.querySelector('.form-row');
+  if (dateRow && dateRow.parentNode) {
+    dateRow.parentNode.insertBefore(box, dateRow.nextSibling);
+  } else {
+    form.insertBefore(box, form.firstChild);
+  }
+
+  injectBookingSummaryStyles();
+  return box;
+}
+
+function injectBookingSummaryStyles() {
+  if (document.getElementById('bookingSummaryStyles')) return;
+
+  const style = document.createElement('style');
+  style.id = 'bookingSummaryStyles';
+  style.textContent = `
+    .booking-price-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:15px 18px;border-radius:20px;border:1px solid rgba(212,175,55,.35);background:linear-gradient(135deg,rgba(212,175,55,.16),rgba(255,255,255,.06));color:var(--text);font-weight:800;box-shadow:0 12px 34px rgba(212,175,55,.1)}.booking-price-summary strong{color:var(--gold);font-size:1.04rem}.booking-price-summary span{color:var(--muted)}.booking-price-summary.warning{border-color:rgba(239,68,68,.45);background:rgba(239,68,68,.1);color:#fecaca}body[data-theme='day'] .booking-price-summary{background:linear-gradient(135deg,rgba(212,175,55,.17),rgba(255,255,255,.75))}@media(max-width:820px){.booking-price-summary{align-items:flex-start;flex-direction:column}}
+  `;
+  document.head.appendChild(style);
+}
+
+function getBookingNights(checkin, checkout) {
+  if (!checkin || !checkout) return 0;
+  const start = new Date(checkin + 'T00:00:00');
+  const end = new Date(checkout + 'T00:00:00');
+  const diff = end.getTime() - start.getTime();
+  if (!Number.isFinite(diff) || diff <= 0) return -1;
+  return Math.ceil(diff / 86400000);
+}
+
+function getSelectedRoomPrice() {
+  const select = document.getElementById('bookingRoomType');
+  const selectedTypeId = select ? select.value : '';
+  const room = LAST_ROOM_TYPES.find(function (item) {
+    return String(item.TypeID) === String(selectedTypeId);
+  });
+  return room ? Number(room.Price || 0) : 0;
+}
+
+function updateBookingSummary() {
+  const form = document.getElementById('bookingForm');
+  if (!form) return;
+
+  const box = ensureBookingSummaryBox();
+  if (!box) return;
+
+  const checkinInput = form.querySelector('input[name="checkin"]');
+  const checkoutInput = form.querySelector('input[name="checkout"]');
+  const checkin = checkinInput ? checkinInput.value : '';
+  const checkout = checkoutInput ? checkoutInput.value : '';
+  const nights = getBookingNights(checkin, checkout);
+  const price = getSelectedRoomPrice();
+
+  box.classList.remove('warning');
+
+  if (!checkin || !checkout) {
+    box.textContent = t('choose_dates_label');
+    return;
+  }
+
+  if (nights < 1) {
+    box.classList.add('warning');
+    box.textContent = t('invalid_dates_label');
+    return;
+  }
+
+  box.innerHTML =
+    '<strong>' + t('nights_label') + ': ' + nights + '</strong>' +
+    '<span>' + t('night_price_label') + ': ' + formatPriceGel(price) + '</span>' +
+    '<span>' + t('total_label') + ': ' + formatPriceGel(nights * price) + '</span>';
 }
 
 document.addEventListener('DOMContentLoaded', function () {
