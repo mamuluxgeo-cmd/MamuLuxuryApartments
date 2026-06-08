@@ -53,15 +53,15 @@ function renderRoomTypeForm() {
       '<div class="rt-media-grid">' +
         '<div class="rt-upload-card">' +
           '<strong>მთავარი ფოტო</strong>' +
-          '<p>ეს ფოტო გამოჩნდება მთავარ ბარათზე.</p>' +
+          '<p>ეს ფოტო გამოჩნდება მთავარ გვერდზე აპარტამენტის ბარათზე.</p>' +
           '<input name="MainImage" id="rtMainImage" placeholder="მთავარი ფოტო URL" />' +
-          '<div class="rt-upload-actions"><input type="file" id="rtMainImageFile" accept="image/*" /><button type="button" onclick="uploadRoomTypeMainImage()">Upload Main Image</button></div>' +
+          '<div class="rt-upload-actions"><input type="file" id="rtMainImageFile" accept="image/*" /><button type="button" onclick="uploadRoomTypeMainImage()">მთავარი ფოტოს ატვირთვა</button></div>' +
         '</div>' +
         '<div class="rt-upload-card">' +
-          '<strong>გალერეის ფოტოები</strong>' +
-          '<p>ატვირთული ფოტო URL ავტომატურად დაემატება სიას.</p>' +
-          '<input name="GalleryImages" id="rtGalleryImages" placeholder="ფოტო URL-ები მძიმით" />' +
-          '<div class="rt-upload-actions"><input type="file" id="rtGalleryImageFile" accept="image/*" /><button type="button" onclick="uploadRoomTypeGalleryImage()">Upload Gallery Image</button></div>' +
+          '<strong>ამ აპარტამენტის ფოტოები</strong>' +
+          '<p>შეგიძლია ერთდროულად მონიშნო რამდენიმე ფოტო. ყველა URL ცალ-ცალკე ხაზზე დაემატება და მეტის ნახვაზე გამოჩნდება.</p>' +
+          '<textarea name="GalleryImages" id="rtGalleryImages" placeholder="გალერეის ფოტო URL-ები — თითო URL ცალკე ხაზზე"></textarea>' +
+          '<div class="rt-upload-actions"><input type="file" id="rtGalleryImageFile" accept="image/*" multiple /><button type="button" onclick="uploadRoomTypeGalleryImage()">რამდენიმე ფოტოს ატვირთვა</button></div>' +
         '</div>' +
       '</div>' +
       '<small id="roomTypeUploadStatus" class="rt-status"></small>' +
