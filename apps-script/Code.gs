@@ -21,9 +21,7 @@ const HEADERS = {
     'MainImage', 'GalleryImages', 'YoutubeVideo',
     'Status', 'Featured', 'SortOrder', 'CreatedAt', 'UpdatedAt'
   ],
-  Rooms: [
-    'RoomID', 'RoomNumber', 'TypeID', 'Floor', 'Status', 'Note', 'CreatedAt', 'UpdatedAt'
-  ],
+  Rooms: ['RoomID', 'RoomNumber', 'TypeID', 'Floor', 'Status', 'Note', 'CreatedAt', 'UpdatedAt'],
   Bookings: [
     'BookingID', 'CreatedAt', 'RoomTypeID', 'RoomTypeName', 'RoomID', 'RoomNumber', 'GuestName',
     'Phone', 'Email', 'CheckIn', 'CheckOut', 'Nights', 'Guests', 'TotalPrice', 'Message',
@@ -33,12 +31,8 @@ const HEADERS = {
     'BlockID', 'CreatedAt', 'RoomID', 'RoomNumber', 'RoomTypeID', 'StartDate', 'EndDate',
     'Source', 'GuestName', 'Phone', 'Status', 'Reason', 'AdminNote', 'UpdatedAt'
   ],
-  Gallery: [
-    'ID', 'Title', 'ImageUrl', 'Category', 'Status', 'SortOrder', 'CreatedAt', 'UpdatedAt'
-  ],
-  Videos: [
-    'ID', 'Title', 'YoutubeUrl', 'Category', 'Status', 'SortOrder', 'CreatedAt', 'UpdatedAt'
-  ],
+  Gallery: ['ID', 'Title', 'ImageUrl', 'Category', 'Status', 'SortOrder', 'CreatedAt', 'UpdatedAt'],
+  Videos: ['ID', 'Title', 'YoutubeUrl', 'Category', 'Status', 'SortOrder', 'CreatedAt', 'UpdatedAt'],
   Settings: ['Key', 'Value', 'Description', 'UpdatedAt'],
   Admins: ['Username', 'Password', 'Role', 'Status', 'CreatedAt'],
   Logs: ['CreatedAt', 'Action', 'Details']
@@ -63,6 +57,7 @@ function onOpen() {
     .createMenu('Mamu Luxury')
     .addItem('Setup / განახლება', 'setupMamuLuxurySystem')
     .addItem('Fix validations only', 'fixValidationsOnly')
+    .addItem('Authorize Drive Upload', 'authorizeDriveUpload')
     .addItem('Add sample data', 'addSampleData')
     .addItem('Clear demo data', 'clearDemoData')
     .addToUi();
@@ -70,22 +65,19 @@ function onOpen() {
 
 function setupMamuLuxurySystem() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-
   Object.keys(HEADERS).forEach(function(sheetName) {
     const sheet = getOrCreateSheet_(ss, sheetName);
     clearSheetValidations_(sheet);
     setupHeaders_(sheet, HEADERS[sheetName]);
     freezeAndStyle_(sheet);
   });
-
   setupSettings_(ss.getSheetByName(SHEETS.SETTINGS));
   setupAdmins_(ss.getSheetByName(SHEETS.ADMINS));
   sanitizeValidationColumns_(ss);
   setupValidations_(ss);
   addSampleData();
   log_('SETUP', 'System initialized or updated');
-
-  SpreadsheetApp.getUi().alert('მზადაა! სისტემა განახლდა და validation შეცდომები გასუფთავდა.');
+  SpreadsheetApp.getUi().alert('მზადაა! სისტემა განახლდა. ფოტოები აიტვირთება Google Drive-ში.');
 }
 
 function fixValidationsOnly() {
@@ -96,7 +88,12 @@ function fixValidationsOnly() {
   });
   sanitizeValidationColumns_(ss);
   setupValidations_(ss);
-  SpreadsheetApp.getUi().alert('Validation წესები გასწორებულია. ახლა ისევ გაუშვი Setup / განახლება.');
+  SpreadsheetApp.getUi().alert('Validation წესები გასწორებულია.');
+}
+
+function authorizeDriveUpload() {
+  const folder = getOrCreateUploadFolder_();
+  SpreadsheetApp.getUi().alert('Drive upload მზადაა. Folder: ' + folder.getName());
 }
 
 function getOrCreateSheet_(ss, name) {
@@ -105,9 +102,7 @@ function getOrCreateSheet_(ss, name) {
 
 function clearSheetValidations_(sheet) {
   if (!sheet) return;
-  const rows = Math.max(sheet.getMaxRows(), 1);
-  const cols = Math.max(sheet.getMaxColumns(), 1);
-  sheet.getRange(1, 1, rows, cols).clearDataValidations();
+  sheet.getRange(1, 1, Math.max(sheet.getMaxRows(), 1), Math.max(sheet.getMaxColumns(), 1)).clearDataValidations();
 }
 
 function setupHeaders_(sheet, headers) {
@@ -149,26 +144,30 @@ function freezeAndStyle_(sheet) {
 }
 
 function setupSettings_(sheet) {
-  if (sheet.getLastRow() > 1) return;
   const now = new Date();
-  const rows = [
-    ['site_title', 'Mamu Luxury Apartments', 'საიტის მთავარი სახელი', now],
-    ['hero_title', 'პრემიუმ აპარტამენტები ბათუმში', 'მთავარი დიდი სათაური', now],
-    ['hero_subtitle', 'Luxury Liquid Glass experience in Batumi', 'მთავარი ქვესათაური', now],
-    ['phone', '', 'საკონტაქტო ნომერი', now],
-    ['whatsapp', '', 'WhatsApp ნომერი ქვეყნის კოდით', now],
-    ['address', '', 'მისამართი', now],
-    ['map_url', '', 'Google Maps ლინკი', now],
-    ['facebook', '', 'Facebook ლინკი', now],
-    ['instagram', '', 'Instagram ლინკი', now],
-    ['tiktok', '', 'TikTok ლინკი', now],
-    ['currency', 'GEL', 'ვალუტა', now],
-    ['theme_default', 'night', 'day ან night', now],
-    ['main_hero_image', '', 'მთავარი ფონის ფოტო', now],
-    ['imgbb_api_key', '104cf2ebb4a05c7908280dff041c8609', 'imgbb API key', now],
-    ['admin_session_hours', '12', 'ადმინის სესიის ხანგრძლივობა საათებში', now]
+  const defaults = [
+    ['site_title', 'Mamu Luxury Apartments', 'საიტის მთავარი სახელი'],
+    ['hero_title', 'პრემიუმ აპარტამენტები ბათუმში', 'მთავარი დიდი სათაური'],
+    ['hero_subtitle', 'Luxury Liquid Glass experience in Batumi', 'მთავარი ქვესათაური'],
+    ['phone', '', 'საკონტაქტო ნომერი'],
+    ['whatsapp', '', 'WhatsApp ნომერი ქვეყნის კოდით'],
+    ['address', '', 'მისამართი'],
+    ['map_url', '', 'Google Maps ლინკი'],
+    ['facebook', '', 'Facebook ლინკი'],
+    ['instagram', '', 'Instagram ლინკი'],
+    ['tiktok', '', 'TikTok ლინკი'],
+    ['currency', 'GEL', 'ვალუტა'],
+    ['theme_default', 'night', 'day ან night'],
+    ['main_hero_image', '', 'მთავარი ფონის ფოტო'],
+    ['drive_upload_folder_id', '', 'Google Drive folder ID for uploaded apartment photos'],
+    ['admin_session_hours', '12', 'ადმინის სესიის ხანგრძლივობა საათებში']
   ];
-  sheet.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
+
+  if (sheet.getLastRow() < 1) sheet.getRange(1, 1, 1, HEADERS.Settings.length).setValues([HEADERS.Settings]);
+  const existing = getSettings_();
+  const rowsToAdd = defaults.filter(function(row) { return existing[row[0]] === undefined; })
+    .map(function(row) { return [row[0], row[1], row[2], now]; });
+  if (rowsToAdd.length) sheet.getRange(sheet.getLastRow() + 1, 1, rowsToAdd.length, 4).setValues(rowsToAdd);
 }
 
 function setupAdmins_(sheet) {
@@ -213,11 +212,9 @@ function setupValidations_(ss) {
 
 function setValidation_(sheet, column, values) {
   if (!sheet) return;
-  const rowCount = Math.max(sheet.getMaxRows() - 1, 1);
-  const range = sheet.getRange(2, column, rowCount, 1);
+  const range = sheet.getRange(2, column, Math.max(sheet.getMaxRows() - 1, 1), 1);
   range.clearDataValidations();
-  const rule = SpreadsheetApp.newDataValidation().requireValueInList(values, true).setAllowInvalid(false).build();
-  range.setDataValidation(rule);
+  range.setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(values, true).setAllowInvalid(false).build());
 }
 
 function addSampleData() {
@@ -230,8 +227,7 @@ function addSampleData() {
 
 function seedRoomTypes_(sheet) {
   if (!sheet || sheet.getLastRow() > 1) return;
-  const now = new Date();
-  const img = 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80';
+  const img = '';
   const rows = [
     makeRoomTypeRow_('TYPE-A', '1 საძინებლიანი აპარტამენტი', '1 Bedroom Apartment', 'Апартаменты с 1 спальней', 150, 2, 1, 1, '45 m²', img, 1),
     makeRoomTypeRow_('TYPE-B', '2 საძინებლიანი აპარტამენტი — სტილი 1', '2 Bedroom Apartment Style 1', 'Апартаменты с 2 спальнями — стиль 1', 260, 5, 2, 1, '70 m²', img, 2),
@@ -253,17 +249,7 @@ function makeRoomTypeRow_(typeId, nameKa, nameEn, nameRu, price, guests, bedroom
   const amenitiesKa = 'Wi-Fi, ტელეფონი, კონდიციონერი, ცენტრალური გათბობა, აივანი, სრულად აღჭურვილი სამზარეულო, სამზარეულოს ინვენტარი, მაცივარი, ელექტრო ქურა, სარეცხი მანქანა';
   const amenitiesEn = 'Wi-Fi, telephone, air conditioning, central heating, balcony, fully equipped kitchen, kitchenware, refrigerator, electric stove, washing machine';
   const amenitiesRu = 'Wi-Fi, телефон, кондиционер, центральное отопление, балкон, полностью оборудованная кухня, кухонные принадлежности, холодильник, электрическая плита, стиральная машина';
-
-  return [
-    typeId, nameKa, nameKa, nameEn, nameRu,
-    'Apartment', 'აპარტამენტი', 'Apartment', 'Апартаменты',
-    shortKa, shortKa, shortEn, shortRu,
-    fullKa, fullKa, fullEn, fullRu,
-    amenitiesKa, amenitiesKa, amenitiesEn, amenitiesRu,
-    price, '', guests, bedrooms, bathrooms, area,
-    image, '', '',
-    'Active', 'Yes', sortOrder, now, now
-  ];
+  return [typeId, nameKa, nameKa, nameEn, nameRu, 'Apartment', 'აპარტამენტი', 'Apartment', 'Апартаменты', shortKa, shortKa, shortEn, shortRu, fullKa, fullKa, fullEn, fullRu, amenitiesKa, amenitiesKa, amenitiesEn, amenitiesRu, price, '', guests, bedrooms, bathrooms, area, image, '', '', 'Active', 'Yes', sortOrder, now, now];
 }
 
 function seedRooms_(sheet) {
@@ -280,7 +266,7 @@ function seedRooms_(sheet) {
 
 function seedGallery_(sheet) {
   if (!sheet || sheet.getLastRow() > 1) return;
-  sheet.appendRow(['GAL001', 'Luxury Interior', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80', 'Interior', 'Active', 1, new Date(), new Date()]);
+  sheet.appendRow(['GAL001', 'Luxury Interior', '', 'Interior', 'Active', 1, new Date(), new Date()]);
 }
 
 function seedVideos_(sheet) {
@@ -298,16 +284,10 @@ function clearDemoData() {
 
 function doGet(e) {
   const params = e && e.parameter ? e.parameter : {};
-
   if (params.payload) {
-    try {
-      const payload = JSON.parse(params.payload || '{}');
-      return handlePostAction_(payload);
-    } catch (error) {
-      return json_({ success: false, error: String(error) });
-    }
+    try { return handlePostAction_(JSON.parse(params.payload || '{}')); }
+    catch (error) { return json_({ success: false, error: String(error) }); }
   }
-
   const action = params.action || 'health';
   if (action === 'health') return json_({ success: true, message: 'Mamu Luxury API is working' });
   if (action === 'roomTypes') return json_({ success: true, data: getRows_(SHEETS.ROOM_TYPES, { Status: 'Active' }) });
@@ -317,16 +297,13 @@ function doGet(e) {
   if (action === 'settings') return json_({ success: true, data: getSettings_() });
   if (action === 'availability') return json_(checkAvailability_(params));
   if (action === 'calendar') return json_(getCalendar_(params));
+  if (action === 'exchangeRates') return json_({ success: true, rates: { USD: 0.37, EUR: 0.34 } });
   return json_({ success: false, error: 'Unknown action' });
 }
 
 function doPost(e) {
-  try {
-    const payload = JSON.parse(e.postData.contents || '{}');
-    return handlePostAction_(payload);
-  } catch (error) {
-    return json_({ success: false, error: String(error) });
-  }
+  try { return handlePostAction_(JSON.parse(e.postData.contents || '{}')); }
+  catch (error) { return json_({ success: false, error: String(error) }); }
 }
 
 function handlePostAction_(payload) {
@@ -358,61 +335,73 @@ function normalizeRoomTypeData_(data) {
 
 function uploadImage_(payload) {
   try {
-    const settings = getSettings_();
-    const apiKey = settings.imgbb_api_key || '104cf2ebb4a05c7908280dff041c8609';
-    if (!apiKey) return json_({ success: false, error: 'ImgBB API key არ არის მითითებული Settings ფურცელში.' });
-
     const raw = String(payload.imageBase64 || '');
     if (!raw) return json_({ success: false, error: 'ფოტო არ არის მიღებული.' });
 
-    const base64 = raw.indexOf(',') !== -1 ? raw.split(',').pop() : raw;
-    const fileName = String(payload.fileName || 'mamu-luxury-apartment').replace(/\.[^.]+$/, '').slice(0, 80);
+    const dataMatch = raw.match(/^data:([^;]+);base64,(.+)$/);
+    const mimeType = dataMatch ? dataMatch[1] : 'image/jpeg';
+    const base64 = dataMatch ? dataMatch[2] : raw;
+    const bytes = Utilities.base64Decode(base64);
+    const extension = getExtensionFromMime_(mimeType);
+    const safeName = sanitizeFileName_(payload.fileName || 'apartment-photo') + '-' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss') + extension;
+    const blob = Utilities.newBlob(bytes, mimeType, safeName);
+    const folder = getOrCreateUploadFolder_();
+    const file = folder.createFile(blob);
 
-    const response = UrlFetchApp.fetch('https://api.imgbb.com/1/upload?key=' + encodeURIComponent(apiKey), {
-      method: 'post',
-      muteHttpExceptions: true,
-      payload: {
-        image: base64,
-        name: fileName
-      }
-    });
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
 
-    const code = response.getResponseCode();
-    const text = response.getContentText();
-    const result = JSON.parse(text || '{}');
-
-    if (code < 200 || code >= 300 || !result.success) {
-      const message = result && result.error && result.error.message ? result.error.message : 'ImgBB ატვირთვის შეცდომა';
-      return json_({ success: false, error: message });
-    }
-
+    const id = file.getId();
     return json_({
       success: true,
-      url: result.data && result.data.url ? result.data.url : '',
-      displayUrl: result.data && result.data.display_url ? result.data.display_url : '',
-      deleteUrl: result.data && result.data.delete_url ? result.data.delete_url : ''
+      fileId: id,
+      url: 'https://drive.google.com/thumbnail?id=' + id + '&sz=w1600',
+      displayUrl: 'https://drive.google.com/thumbnail?id=' + id + '&sz=w1600',
+      driveUrl: file.getUrl()
     });
   } catch (error) {
     return json_({ success: false, error: String(error) });
   }
 }
 
+function getOrCreateUploadFolder_() {
+  const settings = getSettings_();
+  const existingId = settings.drive_upload_folder_id;
+
+  if (existingId) {
+    try {
+      const existingFolder = DriveApp.getFolderById(existingId);
+      existingFolder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      return existingFolder;
+    } catch (error) {}
+  }
+
+  const folderName = 'Mamu Luxury Apartments Uploads';
+  const folders = DriveApp.getFoldersByName(folderName);
+  const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
+  folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  updateSetting_('drive_upload_folder_id', folder.getId());
+  return folder;
+}
+
+function sanitizeFileName_(name) {
+  return String(name || 'apartment-photo').replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9-_]+/g, '-').replace(/-+/g, '-').slice(0, 70) || 'apartment-photo';
+}
+
+function getExtensionFromMime_(mimeType) {
+  const map = { 'image/jpeg': '.jpg', 'image/jpg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif' };
+  return map[String(mimeType || '').toLowerCase()] || '.jpg';
+}
+
 function createBooking_(data) {
   const availability = checkAvailability_({ roomTypeId: data.roomTypeId, checkin: data.checkin, checkout: data.checkout });
-  if (!availability.success || availability.availableRooms.length === 0) {
-    return json_({ success: false, error: 'ამ თარიღებში არჩეული ნომრის ტიპი დაკავებულია.' });
-  }
+  if (!availability.success || availability.availableRooms.length === 0) return json_({ success: false, error: 'ამ თარიღებში არჩეული ნომრის ტიპი დაკავებულია.' });
   const roomType = findById_(SHEETS.ROOM_TYPES, 'TypeID', data.roomTypeId) || {};
   const nights = calculateNights_(data.checkin, data.checkout);
   const price = Number(roomType.Price || 0);
   const total = nights * price;
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEETS.BOOKINGS);
   const bookingId = 'BK-' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss');
-  sheet.appendRow([
-    bookingId, new Date(), data.roomTypeId || '', roomType.Name || data.roomTypeName || '', '', '', data.name || '',
-    data.phone || '', data.email || '', data.checkin || '', data.checkout || '', nights, data.guests || '', total,
-    data.message || data.note || '', 'New', '', new Date()
-  ]);
+  sheet.appendRow([bookingId, new Date(), data.roomTypeId || '', roomType.Name || data.roomTypeName || '', '', '', data.name || '', data.phone || '', data.email || '', data.checkin || '', data.checkout || '', nights, data.guests || '', total, data.message || data.note || '', 'New', '', new Date()]);
   log_('BOOKING_CREATED', bookingId);
   return json_({ success: true, bookingId: bookingId, availableRooms: availability.availableRooms });
 }
@@ -420,27 +409,12 @@ function createBooking_(data) {
 function createManualBlock_(payload) {
   const data = payload.data || payload;
   const availability = checkAvailability_({ roomTypeId: data.RoomTypeID, roomId: data.RoomID, checkin: data.StartDate, checkout: data.EndDate });
-  if (!availability.success || availability.availableRooms.length === 0) {
-    return json_({ success: false, error: 'ეს ნომერი/ტიპი ამ თარიღებში უკვე დაკავებულია.' });
-  }
+  if (!availability.success || availability.availableRooms.length === 0) return json_({ success: false, error: 'ეს ნომერი/ტიპი ამ თარიღებში უკვე დაკავებულია.' });
   const room = data.RoomID ? findById_(SHEETS.ROOMS, 'RoomID', data.RoomID) : availability.availableRooms[0];
-  const block = {
+  return upsertRow_(SHEETS.MANUAL_BLOCKS, 'BlockID', {
     BlockID: data.BlockID || 'BLK-' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss'),
-    CreatedAt: data.CreatedAt || new Date(),
-    RoomID: room.RoomID || '',
-    RoomNumber: room.RoomNumber || '',
-    RoomTypeID: room.TypeID || data.RoomTypeID || '',
-    StartDate: data.StartDate || '',
-    EndDate: data.EndDate || '',
-    Source: data.Source || 'Other',
-    GuestName: data.GuestName || '',
-    Phone: data.Phone || '',
-    Status: data.Status || 'Active',
-    Reason: data.Reason || '',
-    AdminNote: data.AdminNote || '',
-    UpdatedAt: new Date()
-  };
-  return upsertRow_(SHEETS.MANUAL_BLOCKS, 'BlockID', block);
+    CreatedAt: data.CreatedAt || new Date(), RoomID: room.RoomID || '', RoomNumber: room.RoomNumber || '', RoomTypeID: room.TypeID || data.RoomTypeID || '', StartDate: data.StartDate || '', EndDate: data.EndDate || '', Source: data.Source || 'Other', GuestName: data.GuestName || '', Phone: data.Phone || '', Status: data.Status || 'Active', Reason: data.Reason || '', AdminNote: data.AdminNote || '', UpdatedAt: new Date()
+  });
 }
 
 function updateManualBlock_(payload) {
@@ -458,35 +432,26 @@ function checkAvailability_(params) {
   if (roomTypeId) rooms = rooms.filter(function(room) { return String(room.TypeID) === String(roomTypeId); });
   if (roomId) rooms = rooms.filter(function(room) { return String(room.RoomID) === String(roomId); });
 
-  const activeBookings = getRows_(SHEETS.BOOKINGS).filter(function(b) {
-    return ['Confirmed', 'CheckedIn'].indexOf(String(b.Status)) !== -1;
-  });
+  const activeBookings = getRows_(SHEETS.BOOKINGS).filter(function(b) { return ['Confirmed', 'CheckedIn'].indexOf(String(b.Status)) !== -1; });
   const activeBlocks = getRows_(SHEETS.MANUAL_BLOCKS, { Status: 'Active' });
 
   const availableRooms = rooms.filter(function(room) {
-    const booked = activeBookings.some(function(b) {
-      return String(b.RoomID) === String(room.RoomID) && rangesOverlap_(checkin, checkout, b.CheckIn, b.CheckOut);
-    });
-    const blocked = activeBlocks.some(function(block) {
-      return String(block.RoomID) === String(room.RoomID) && rangesOverlap_(checkin, checkout, block.StartDate, block.EndDate);
-    });
+    const booked = activeBookings.some(function(b) { return String(b.RoomID) === String(room.RoomID) && rangesOverlap_(checkin, checkout, b.CheckIn, b.CheckOut); });
+    const blocked = activeBlocks.some(function(block) { return String(block.RoomID) === String(room.RoomID) && rangesOverlap_(checkin, checkout, block.StartDate, block.EndDate); });
     return !booked && !blocked;
   });
-
   return { success: true, available: availableRooms.length > 0, count: availableRooms.length, availableRooms: availableRooms };
 }
 
 function getCalendar_(params) {
   const start = params.start;
   const end = params.end;
-  const rooms = getRows_(SHEETS.ROOMS);
-  const bookings = getRows_(SHEETS.BOOKINGS).filter(function(b) {
-    return ['New', 'Confirmed', 'CheckedIn'].indexOf(String(b.Status)) !== -1 && rangesOverlap_(start, end, b.CheckIn, b.CheckOut);
-  });
-  const blocks = getRows_(SHEETS.MANUAL_BLOCKS, { Status: 'Active' }).filter(function(block) {
-    return rangesOverlap_(start, end, block.StartDate, block.EndDate);
-  });
-  return { success: true, rooms: rooms, bookings: bookings, blocks: blocks };
+  return {
+    success: true,
+    rooms: getRows_(SHEETS.ROOMS),
+    bookings: getRows_(SHEETS.BOOKINGS).filter(function(b) { return ['New', 'Confirmed', 'CheckedIn'].indexOf(String(b.Status)) !== -1 && rangesOverlap_(start, end, b.CheckIn, b.CheckOut); }),
+    blocks: getRows_(SHEETS.MANUAL_BLOCKS, { Status: 'Active' }).filter(function(block) { return rangesOverlap_(start, end, block.StartDate, block.EndDate); })
+  };
 }
 
 function assignRoomToBooking_(payload) {
@@ -494,19 +459,11 @@ function assignRoomToBooking_(payload) {
   if (!availability.success || availability.availableRooms.length === 0) return json_({ success: false, error: 'ეს ნომერი ამ თარიღებში დაკავებულია.' });
   const room = findById_(SHEETS.ROOMS, 'RoomID', payload.roomId);
   if (!room) return json_({ success: false, error: 'Room not found' });
-  return updateBookingFields_(payload.bookingId, {
-    RoomID: room.RoomID,
-    RoomNumber: room.RoomNumber,
-    Status: payload.status || 'Confirmed',
-    AdminNote: payload.adminNote || ''
-  });
+  return updateBookingFields_(payload.bookingId, { RoomID: room.RoomID, RoomNumber: room.RoomNumber, Status: payload.status || 'Confirmed', AdminNote: payload.adminNote || '' });
 }
 
 function updateBookingStatus_(payload) {
-  return updateBookingFields_(payload.bookingId, {
-    Status: payload.status || 'New',
-    AdminNote: payload.adminNote
-  });
+  return updateBookingFields_(payload.bookingId, { Status: payload.status || 'New', AdminNote: payload.adminNote });
 }
 
 function updateBookingFields_(bookingId, fields) {
@@ -529,9 +486,7 @@ function updateBookingFields_(bookingId, fields) {
 
 function adminLogin_(payload) {
   const admins = getRows_(SHEETS.ADMINS, { Status: 'Active' });
-  const found = admins.find(function(admin) {
-    return String(admin.Username) === String(payload.username) && String(admin.Password) === String(payload.password);
-  });
+  const found = admins.find(function(admin) { return String(admin.Username) === String(payload.username) && String(admin.Password) === String(payload.password); });
   if (!found) return json_({ success: false, error: 'არასწორი ლოგინი ან პაროლი' });
   return json_({ success: true, user: { username: found.Username, role: found.Role }, token: Utilities.getUuid() });
 }
@@ -583,17 +538,18 @@ function getRows_(sheetName, filters) {
     return obj;
   });
   if (filters) {
-    Object.keys(filters).forEach(function(key) {
-      rows = rows.filter(function(row) { return String(row[key]) === String(filters[key]); });
-    });
+    Object.keys(filters).forEach(function(key) { rows = rows.filter(function(row) { return String(row[key]) === String(filters[key]); }); });
   }
   return rows.sort(function(a, b) { return Number(a.SortOrder || 9999) - Number(b.SortOrder || 9999); });
 }
 
 function getSettings_() {
-  const rows = getRows_(SHEETS.SETTINGS);
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEETS.SETTINGS);
+  if (!sheet || sheet.getLastRow() < 2) return {};
+  const rows = sheet.getDataRange().getValues();
+  rows.shift();
   const settings = {};
-  rows.forEach(function(row) { settings[row.Key] = row.Value; });
+  rows.forEach(function(row) { if (row[0]) settings[row[0]] = row[1]; });
   return settings;
 }
 
