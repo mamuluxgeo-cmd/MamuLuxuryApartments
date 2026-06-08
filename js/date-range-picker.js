@@ -61,9 +61,56 @@
     picker.id = 'bookingRangePicker';
     picker.className = 'booking-range-picker';
     picker.style.display = 'none';
+
     picker.addEventListener('click', function (event) {
       event.stopPropagation();
+
+      const navButton = event.target.closest('[data-nav]');
+      if (navButton) {
+        changeMonth(Number(navButton.dataset.nav));
+        return;
+      }
+
+      if (event.target.closest('[data-clear]')) {
+        setValue('checkin', '');
+        setValue('checkout', '');
+        activeField = 'checkin';
+        hoverDate = '';
+        renderPicker();
+        updateSummary();
+        return;
+      }
+
+      if (event.target.closest('[data-today]')) {
+        const today = new Date();
+        currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        renderPicker();
+      }
     });
+
+    picker.addEventListener('pointerdown', function (event) {
+      const dayButton = event.target.closest('[data-date]');
+      if (!dayButton) return;
+      event.preventDefault();
+      event.stopPropagation();
+      selectDay(dayButton.dataset.date);
+    });
+
+    picker.addEventListener('mouseover', function (event) {
+      const dayButton = event.target.closest('[data-date]');
+      if (!dayButton) return;
+
+      const key = dayButton.dataset.date;
+      const checkin = getValue('checkin');
+      const checkout = getValue('checkout');
+      const nextHoverDate = checkin && !checkout ? key : '';
+
+      if (nextHoverDate !== hoverDate) {
+        hoverDate = nextHoverDate;
+        renderPicker();
+      }
+    });
+
     document.body.appendChild(picker);
     return picker;
   }
@@ -104,6 +151,7 @@
   function changeMonth(direction) {
     const base = currentMonth || new Date();
     currentMonth = new Date(base.getFullYear(), base.getMonth() + direction, 1);
+    hoverDate = '';
     renderPicker();
   }
 
@@ -157,38 +205,10 @@
     html += '</div>';
     html += '<div class="range-picker-foot"><button type="button" data-clear="1">Clear</button><button type="button" data-today="1">Today</button></div>';
     picker.innerHTML = html;
+  }
 
-    picker.querySelectorAll('[data-nav]').forEach(function (button) {
-      button.addEventListener('click', function () { changeMonth(Number(button.dataset.nav)); });
-    });
-
-    picker.querySelectorAll('[data-date]').forEach(function (button) {
-      button.addEventListener('mouseenter', function () {
-        const key = button.dataset.date;
-        const checkin = getValue('checkin');
-        const checkout = getValue('checkout');
-        hoverDate = checkin && !checkout ? key : '';
-        renderPicker();
-      });
-      button.addEventListener('click', function () { selectDay(button.dataset.date); });
-    });
-
-    const clear = picker.querySelector('[data-clear]');
-    if (clear) clear.addEventListener('click', function () {
-      setValue('checkin', '');
-      setValue('checkout', '');
-      activeField = 'checkin';
-      hoverDate = '';
-      renderPicker();
-      if (typeof updateBookingSummary === 'function') updateBookingSummary();
-    });
-
-    const todayButton = picker.querySelector('[data-today]');
-    if (todayButton) todayButton.addEventListener('click', function () {
-      const today = new Date();
-      currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-      renderPicker();
-    });
+  function updateSummary() {
+    if (typeof updateBookingSummary === 'function') updateBookingSummary();
   }
 
   function selectDay(key) {
@@ -201,7 +221,7 @@
       activeField = 'checkout';
       hoverDate = '';
       renderPicker();
-      if (typeof updateBookingSummary === 'function') updateBookingSummary();
+      updateSummary();
       return;
     }
 
@@ -213,11 +233,12 @@
       renderPicker();
     } else {
       setValue('checkout', key);
+      activeField = 'checkin';
       hoverDate = '';
       closePicker();
     }
 
-    if (typeof updateBookingSummary === 'function') updateBookingSummary();
+    updateSummary();
   }
 
   function init() {
@@ -234,6 +255,9 @@
       input.autocomplete = 'off';
       input.classList.add('date-range-input');
     });
+
+    checkin.placeholder = 'Check-in';
+    checkout.placeholder = 'Check-out';
 
     checkin.addEventListener('click', function (event) {
       event.stopPropagation();
