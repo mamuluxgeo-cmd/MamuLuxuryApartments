@@ -368,9 +368,12 @@ function renderGallery(items) {
   if (!container) return;
   container.innerHTML = '';
 
-  items.slice(0, 8).forEach(function (item) {
+  const visibleItems = (items || [])
+    .filter(function (item) { return normalizeImageUrl(item.ImageUrl); })
+    .sort(function (a, b) { return Number(a.SortOrder || 999999) - Number(b.SortOrder || 999999); });
+
+  visibleItems.forEach(function (item) {
     const image = normalizeImageUrl(item.ImageUrl);
-    if (!image) return;
     const card = document.createElement('article');
     card.className = 'card';
     card.innerHTML = '<img src="' + safeText(image) + '" alt="' + safeText(item.Title) + '" loading="lazy">';
