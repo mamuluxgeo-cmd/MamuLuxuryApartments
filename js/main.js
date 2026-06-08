@@ -88,7 +88,10 @@ const CURRENCY = {
   EUR: { symbol: '€', rate: 0.34 }
 };
 
-const FALLBACK_ROOM_IMAGE = 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80';
+const DEFAULT_UNSPLASH_IMAGE = 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80';
+const FALLBACK_ROOM_IMAGE = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800"><rect width="1200" height="800" fill="#111827"/><text x="600" y="385" text-anchor="middle" fill="#f4d35e" font-family="Arial" font-size="44" font-weight="700">ფოტო არ არის ატვირთული</text><text x="600" y="445" text-anchor="middle" fill="#cbd5e1" font-family="Arial" font-size="26">ატვირთე ფოტო RoomTypes-ში MainImage ან GalleryImages ველში</text></svg>'
+);
 
 let CURRENT_LANG = localStorage.getItem('site_lang') || 'ka';
 let CURRENT_CURRENCY = localStorage.getItem('site_currency') || 'GEL';
@@ -106,15 +109,8 @@ function formatPriceGel(priceGel) {
 
 function applyExchangeRates(exchangeRates) {
   if (!exchangeRates || !exchangeRates.success || !exchangeRates.rates) return;
-
-  if (Number(exchangeRates.rates.USD) > 0) {
-    CURRENCY.USD.rate = Number(exchangeRates.rates.USD);
-  }
-
-  if (Number(exchangeRates.rates.EUR) > 0) {
-    CURRENCY.EUR.rate = Number(exchangeRates.rates.EUR);
-  }
-
+  if (Number(exchangeRates.rates.USD) > 0) CURRENCY.USD.rate = Number(exchangeRates.rates.USD);
+  if (Number(exchangeRates.rates.EUR) > 0) CURRENCY.EUR.rate = Number(exchangeRates.rates.EUR);
   CURRENCY.GEL.rate = 1;
 }
 
@@ -134,9 +130,7 @@ function setCurrency(currency) {
 
 function initCurrencySwitcher() {
   document.querySelectorAll('.currency-switcher button').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      setCurrency(this.dataset.currency);
-    });
+    btn.addEventListener('click', function () { setCurrency(this.dataset.currency); });
   });
   setCurrency(CURRENT_CURRENCY);
 }
@@ -146,14 +140,8 @@ function setLanguage(lang) {
   localStorage.setItem('site_lang', CURRENT_LANG);
   document.documentElement.lang = CURRENT_LANG;
 
-  document.querySelectorAll('[data-i18n]').forEach(function (el) {
-    el.textContent = t(el.dataset.i18n);
-  });
-
-  document.querySelectorAll('[data-i18n-placeholder]').forEach(function (el) {
-    el.placeholder = t(el.dataset.i18nPlaceholder);
-  });
-
+  document.querySelectorAll('[data-i18n]').forEach(function (el) { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(function (el) { el.placeholder = t(el.dataset.i18nPlaceholder); });
   document.querySelectorAll('.language-switcher button[data-lang]').forEach(function (btn) {
     btn.classList.toggle('active', btn.dataset.lang === CURRENT_LANG);
   });
@@ -199,26 +187,53 @@ function getLocalizedField(item, baseName) {
   return item[baseName + suffix] || item[baseName] || '';
 }
 
+function normalizeImageUrl(url) {
+  let text = String(url || '').trim();
+  if (!text) return '';
+
+  const driveMatch = text.match(/drive\.google\.com\/file\/d\/([^/]+)/i) || text.match(/[?&]id=([A-Za-z0-9_-]{20,})/);
+  if (driveMatch && driveMatch[1]) {
+    text = 'https://drive.google.com/uc?export=view&id=' + driveMatch[1];
+  }
+
+  return /^https?:\/\//i.test(text) ? text : '';
+}
+
 function splitImageList(value) {
-  return String(value || '')
-    .split(/[\n,;|]+/)
-    .map(function (url) { return url.trim(); })
-    .filter(function (url) { return /^https?:\/\//i.test(url); });
+  const text = String(value || '');
+  const urls = text.match(/https?:\/\/[^\s,;|]+/gi) || [];
+  return urls.map(normalizeImageUrl).filter(Boolean);
+}
+
+function isDefaultImage(url) {
+  const text = String(url || '');
+  return text.indexOf('images.unsplash.com/photo-1505693416388') !== -1;
+}
+
+function addImageCandidate(images, value) {
+  splitImageList(value).forEach(function (url) {
+    if (images.indexOf(url) === -1) images.push(url);
+  });
 }
 
 function getRoomImages(item) {
   const images = [];
-  const mainImage = String(item.MainImage || '').trim();
 
-  if (/^https?:\/\//i.test(mainImage)) {
-    images.push(mainImage);
-  }
-
-  splitImageList(item.GalleryImages).forEach(function (url) {
-    if (images.indexOf(url) === -1) images.push(url);
+  ['MainImage', 'ImageUrl', 'ImageURL', 'Photo', 'PhotoUrl', 'PhotoURL', 'GalleryImages'].forEach(function (key) {
+    addImageCandidate(images, item[key]);
   });
 
-  return images;
+  Object.keys(item || {}).forEach(function (key) {
+    const lower = key.toLowerCase();
+    if (lower.indexOf('image') !== -1 || lower.indexOf('photo') !== -1 || lower.indexOf('url') !== -1) {
+      if (lower.indexOf('youtube') === -1 && lower.indexOf('video') === -1 && lower.indexOf('map') === -1) {
+        addImageCandidate(images, item[key]);
+      }
+    }
+  });
+
+  const uploadedImages = images.filter(function (url) { return !isDefaultImage(url); });
+  return uploadedImages.length ? uploadedImages : images;
 }
 
 function getRoomMainImage(item) {
@@ -228,7 +243,6 @@ function getRoomMainImage(item) {
 async function loadSite() {
   const savedTheme = localStorage.getItem('theme') || CONFIG.DEFAULT_THEME;
   setTheme(savedTheme);
-
   if (!CONFIG.GOOGLE_SCRIPT_URL) return;
 
   const responses = await Promise.all([
@@ -267,7 +281,6 @@ function renderSettings(settings) {
   const phone = settings.phone || '';
   const whatsapp = settings.whatsapp || '';
   const mapUrl = settings.map_url || '#';
-
   const phoneLink = document.getElementById('phoneLink');
   const mapLink = document.getElementById('mapLink');
   const whatsappLink = document.getElementById('whatsappLink');
@@ -277,9 +290,7 @@ function renderSettings(settings) {
     phoneLink.href = 'tel:' + phone;
     phoneLink.textContent = phone;
   }
-
   if (mapLink) mapLink.href = mapUrl;
-
   if (whatsapp) {
     const whatsappUrl = 'https://wa.me/' + String(whatsapp).replace(/\D/g, '');
     if (whatsappLink) whatsappLink.href = whatsappUrl;
@@ -290,7 +301,6 @@ function renderSettings(settings) {
 function renderRoomTypes(items) {
   const container = document.getElementById('roomTypes');
   if (!container) return;
-
   container.innerHTML = '';
 
   items.forEach(function (item) {
@@ -348,11 +358,13 @@ function renderGallery(items) {
   const container = document.getElementById('galleryGrid');
   if (!container) return;
   container.innerHTML = '';
+
   items.slice(0, 8).forEach(function (item) {
-    if (!item.ImageUrl) return;
+    const image = normalizeImageUrl(item.ImageUrl);
+    if (!image) return;
     const card = document.createElement('article');
     card.className = 'card';
-    card.innerHTML = '<img src="' + safeText(item.ImageUrl) + '" alt="' + safeText(item.Title) + '" loading="lazy">';
+    card.innerHTML = '<img src="' + safeText(image) + '" alt="' + safeText(item.Title) + '" loading="lazy">';
     container.appendChild(card);
   });
 }
@@ -361,6 +373,7 @@ function renderVideos(items) {
   const container = document.getElementById('videoGrid');
   if (!container) return;
   container.innerHTML = '';
+
   items.forEach(function (item) {
     const embedUrl = getYouTubeEmbedUrl(item.YoutubeUrl);
     if (!embedUrl) return;
