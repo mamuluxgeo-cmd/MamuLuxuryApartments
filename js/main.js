@@ -21,7 +21,7 @@ const I18N = {
     contact_title: 'კონტაქტი',
     phone_label: 'ტელეფონი',
     map_label: 'რუკაზე ნახვა',
-    details_btn: 'ვრცლად',
+    details_btn: 'მეტის ნახვა',
     book_btn: 'დაჯავშნა',
     sending: 'იგზავნება...',
     success: 'მოთხოვნა მიღებულია. დაჯავშნის ნომერი: '
@@ -48,7 +48,7 @@ const I18N = {
     contact_title: 'Contact',
     phone_label: 'Phone',
     map_label: 'View on Map',
-    details_btn: 'Details',
+    details_btn: 'View Details',
     book_btn: 'Book',
     sending: 'Sending...',
     success: 'Request received. Booking ID: '
@@ -87,6 +87,8 @@ const CURRENCY = {
   USD: { symbol: '$', rate: 0.37 },
   EUR: { symbol: '€', rate: 0.34 }
 };
+
+const FALLBACK_ROOM_IMAGE = 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80';
 
 let CURRENT_LANG = localStorage.getItem('site_lang') || 'ka';
 let CURRENT_CURRENCY = localStorage.getItem('site_currency') || 'GEL';
@@ -197,6 +199,32 @@ function getLocalizedField(item, baseName) {
   return item[baseName + suffix] || item[baseName] || '';
 }
 
+function splitImageList(value) {
+  return String(value || '')
+    .split(/[\n,;|]+/)
+    .map(function (url) { return url.trim(); })
+    .filter(function (url) { return /^https?:\/\//i.test(url); });
+}
+
+function getRoomImages(item) {
+  const images = [];
+  const mainImage = String(item.MainImage || '').trim();
+
+  if (/^https?:\/\//i.test(mainImage)) {
+    images.push(mainImage);
+  }
+
+  splitImageList(item.GalleryImages).forEach(function (url) {
+    if (images.indexOf(url) === -1) images.push(url);
+  });
+
+  return images;
+}
+
+function getRoomMainImage(item) {
+  return getRoomImages(item)[0] || FALLBACK_ROOM_IMAGE;
+}
+
 async function loadSite() {
   const savedTheme = localStorage.getItem('theme') || CONFIG.DEFAULT_THEME;
   setTheme(savedTheme);
@@ -269,13 +297,15 @@ function renderRoomTypes(items) {
     const article = document.createElement('article');
     article.className = 'card';
 
-    const image = item.MainImage || 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80';
+    const image = getRoomMainImage(item);
     const detailUrl = 'apartment.html?id=' + encodeURIComponent(item.TypeID);
     const name = getLocalizedField(item, 'Name');
     const shortDescription = getLocalizedField(item, 'ShortDescription');
 
     article.innerHTML =
-      '<img src="' + safeText(image) + '" alt="' + safeText(name) + '">' +
+      '<a class="card-image-link" href="' + detailUrl + '" aria-label="' + safeText(name) + '">' +
+        '<img src="' + safeText(image) + '" alt="' + safeText(name) + '" loading="lazy" onerror="this.onerror=null;this.src=\'' + FALLBACK_ROOM_IMAGE + '\';">' +
+      '</a>' +
       '<div class="card-content">' +
         '<h3>' + safeText(name) + '</h3>' +
         '<p>' + safeText(shortDescription) + '</p>' +
@@ -322,7 +352,7 @@ function renderGallery(items) {
     if (!item.ImageUrl) return;
     const card = document.createElement('article');
     card.className = 'card';
-    card.innerHTML = '<img src="' + safeText(item.ImageUrl) + '" alt="' + safeText(item.Title) + '">';
+    card.innerHTML = '<img src="' + safeText(item.ImageUrl) + '" alt="' + safeText(item.Title) + '" loading="lazy">';
     container.appendChild(card);
   });
 }
