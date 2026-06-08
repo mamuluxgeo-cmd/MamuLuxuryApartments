@@ -45,6 +45,7 @@ function setUploadStatus(text) {
 
 function appendUrlToInput(input, url) {
   if (!input || !url) return;
+
   const current = input.value.trim();
   const parts = current
     ? current.split(/[\n,;|]+/).map(function (item) { return item.trim(); }).filter(Boolean)
@@ -54,12 +55,53 @@ function appendUrlToInput(input, url) {
   input.value = parts.join('\n');
 }
 
+function syncRoomTypeFallbackFieldsForUpload() {
+  if (typeof syncFallbackLanguageFields === 'function') {
+    syncFallbackLanguageFields();
+  }
+}
+
+function collectRoomTypeFormDataForUpload() {
+  const form = document.getElementById('roomTypeForm');
+  const visibleId = document.getElementById('rtTypeIDVisible');
+  const hiddenId = document.getElementById('rtTypeID');
+
+  if (!form) {
+    throw new Error('ჯერ გახსენი Room Types-ში კონკრეტული ოთახი Edit ღილაკით');
+  }
+
+  syncRoomTypeFallbackFieldsForUpload();
+
+  const data = Object.fromEntries(new FormData(form).entries());
+  const typeId = (data.TypeID || (visibleId ? visibleId.value : '') || '').trim();
+
+  if (!typeId) {
+    throw new Error('ჯერ აირჩიე ოთახი Edit ღილაკით ან შეავსე Type ID');
+  }
+
+  data.TypeID = typeId;
+  if (hiddenId) hiddenId.value = typeId;
+
+  return data;
+}
+
+async function autoSaveRoomTypePhotos() {
+  const data = collectRoomTypeFormDataForUpload();
+  const result = await apiPost('upsertRoomType', { data: data });
+
+  if (!result.success) {
+    throw new Error(result.error || 'ფოტო აიტვირთა, მაგრამ ოთახზე შენახვა ვერ მოხერხდა');
+  }
+
+  return result;
+}
+
 async function uploadRoomTypeMainImage() {
   const input = document.getElementById('rtMainImageFile');
   const urlInput = document.getElementById('rtMainImage');
 
   if (!input || !input.files || !input.files[0]) {
-    setUploadStatus('ჯერ აირჩიე მთავარი ფოტო');
+    setUploadStatus('ჯერ აირჩიე მთავარი ფოტო კომპიუტერიდან');
     return;
   }
 
@@ -68,8 +110,21 @@ async function uploadRoomTypeMainImage() {
   try {
     const result = await uploadFileToImgbb(input.files[0]);
     const url = result.url || result.displayUrl || '';
+
+    if (!url) {
+      throw new Error('ფოტო აიტვირთა, მაგრამ URL ვერ მივიღეთ');
+    }
+
     if (urlInput) urlInput.value = url;
-    setUploadStatus('მთავარი ფოტო აიტვირთა. ახლა დააჭირე შენახვას.');
+
+    setUploadStatus('ფოტო აიტვირთა, ახლა ოთახზე ინახება...');
+    await autoSaveRoomTypePhotos();
+
+    setUploadStatus('მთავარი ფოტო აიტვირთა და ავტომატურად დაემატა ამ ოთახს ✅');
+
+    if (typeof loadRoomTypes === 'function') {
+      setTimeout(loadRoomTypes, 700);
+    }
   } catch (error) {
     setUploadStatus(error.message || 'ატვირთვა ვერ მოხერხდა');
   }
@@ -80,26 +135,38 @@ async function uploadRoomTypeGalleryImage() {
   const galleryInput = document.getElementById('rtGalleryImages');
 
   if (!input || !input.files || input.files.length === 0) {
-    setUploadStatus('ჯერ აირჩიე ერთი ან რამდენიმე გალერეის ფოტო');
+    setUploadStatus('ჯერ აირჩიე ერთი ან რამდენიმე ფოტო კომპიუტერიდან');
     return;
   }
 
   const files = Array.from(input.files);
   let uploaded = 0;
-  setUploadStatus('გალერეის ფოტოები იტვირთება: 0/' + files.length);
 
-  for (const file of files) {
-    try {
+  setUploadStatus('ფოტოები იტვირთება: 0/' + files.length);
+
+  try {
+    for (const file of files) {
       const result = await uploadFileToImgbb(file);
       const url = result.url || result.displayUrl || '';
+
+      if (!url) {
+        throw new Error('ერთ-ერთი ფოტო აიტვირთა, მაგრამ URL ვერ მივიღეთ');
+      }
+
       appendUrlToInput(galleryInput, url);
       uploaded += 1;
-      setUploadStatus('გალერეის ფოტოები იტვირთება: ' + uploaded + '/' + files.length);
-    } catch (error) {
-      setUploadStatus((error && error.message) ? error.message : 'ერთ-ერთი ფოტოს ატვირთვა ვერ მოხერხდა');
-      return;
+      setUploadStatus('ფოტოები იტვირთება: ' + uploaded + '/' + files.length);
     }
-  }
 
-  setUploadStatus('აიტვირთა ' + uploaded + ' ფოტო. ახლა დააჭირე შენახვას.');
+    setUploadStatus('ფოტოები აიტვირთა, ახლა ოთახზე ინახება...');
+    await autoSaveRoomTypePhotos();
+
+    setUploadStatus('აიტვირთა ' + uploaded + ' ფოტო და ავტომატურად დაემატა ამ ოთახს ✅');
+
+    if (typeof loadRoomTypes === 'function') {
+      setTimeout(loadRoomTypes, 700);
+    }
+  } catch (error) {
+    setUploadStatus((error && error.message) ? error.message : 'ფოტოების ატვირთვა ვერ მოხერხდა');
+  }
 }
