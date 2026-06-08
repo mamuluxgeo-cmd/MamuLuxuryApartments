@@ -12,9 +12,14 @@ const SHEETS = {
 
 const HEADERS = {
   RoomTypes: [
-    'TypeID', 'Name', 'Category', 'ShortDescription', 'FullDescription', 'Price', 'OldPrice',
-    'Guests', 'Bedrooms', 'Bathrooms', 'Area', 'MainImage', 'GalleryImages', 'YoutubeVideo',
-    'Amenities', 'Status', 'Featured', 'SortOrder', 'CreatedAt', 'UpdatedAt'
+    'TypeID', 'Name', 'Name_KA', 'Name_EN', 'Name_RU',
+    'Category', 'Category_KA', 'Category_EN', 'Category_RU',
+    'ShortDescription', 'ShortDescription_KA', 'ShortDescription_EN', 'ShortDescription_RU',
+    'FullDescription', 'FullDescription_KA', 'FullDescription_EN', 'FullDescription_RU',
+    'Amenities', 'Amenities_KA', 'Amenities_EN', 'Amenities_RU',
+    'Price', 'OldPrice', 'Guests', 'Bedrooms', 'Bathrooms', 'Area',
+    'MainImage', 'GalleryImages', 'YoutubeVideo',
+    'Status', 'Featured', 'SortOrder', 'CreatedAt', 'UpdatedAt'
   ],
   Rooms: [
     'RoomID', 'RoomNumber', 'TypeID', 'Floor', 'Status', 'Note', 'CreatedAt', 'UpdatedAt'
@@ -71,7 +76,28 @@ function getOrCreateSheet_(ss, name) {
 }
 
 function setupHeaders_(sheet, headers) {
+  const existingValues = sheet.getLastColumn() ? sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0] : [];
+  const oldData = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues() : [];
+
+  if (!oldData.length) {
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    return;
+  }
+
+  const remappedRows = oldData.map(function(row) {
+    const objectRow = {};
+    existingValues.forEach(function(header, index) {
+      if (header) objectRow[header] = row[index];
+    });
+
+    return headers.map(function(header) {
+      return objectRow[header] !== undefined ? objectRow[header] : '';
+    });
+  });
+
+  sheet.clearContents();
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  sheet.getRange(2, 1, remappedRows.length, headers.length).setValues(remappedRows);
 }
 
 function freezeAndStyle_(sheet) {
@@ -114,13 +140,13 @@ function setupAdmins_(sheet) {
 }
 
 function setupValidations_(ss) {
-  setValidation_(ss.getSheetByName(SHEETS.ROOM_TYPES), 16, ['Active', 'Inactive']);
-  setValidation_(ss.getSheetByName(SHEETS.ROOM_TYPES), 17, ['Yes', 'No']);
+  setValidation_(ss.getSheetByName(SHEETS.ROOM_TYPES), 31, ['Active', 'Inactive']);
+  setValidation_(ss.getSheetByName(SHEETS.ROOM_TYPES), 32, ['Yes', 'No']);
   setValidation_(ss.getSheetByName(SHEETS.ROOMS), 5, ['Active', 'Inactive', 'Maintenance']);
   setValidation_(ss.getSheetByName(SHEETS.BOOKINGS), 16, ['New', 'Confirmed', 'CheckedIn', 'CheckedOut', 'Cancelled', 'NoShow']);
   setValidation_(ss.getSheetByName(SHEETS.MANUAL_BLOCKS), 8, ['Booking.com', 'Airbnb', 'Expedia', 'WhatsApp', 'Phone', 'Walk-in', 'Maintenance', 'Owner', 'Other']);
   setValidation_(ss.getSheetByName(SHEETS.MANUAL_BLOCKS), 11, ['Active', 'Cancelled', 'Completed']);
-  setValidation_(ss.getSheetByName(SHEETS.GALLERY), 4, ['Room', 'View', 'Interior', 'Exterior', 'Other']);
+  setValidation_(ss.getSheetByName(SHEETS.GALLERY), 4, ['Room', 'Reception', 'Terrace', 'Lobby', 'View', 'Interior', 'Exterior', 'Other']);
   setValidation_(ss.getSheetByName(SHEETS.GALLERY), 5, ['Active', 'Inactive']);
   setValidation_(ss.getSheetByName(SHEETS.VIDEOS), 4, ['Apartment', 'General', 'Review', 'Other']);
   setValidation_(ss.getSheetByName(SHEETS.VIDEOS), 5, ['Active', 'Inactive']);
@@ -146,11 +172,11 @@ function seedRoomTypes_(sheet) {
   const now = new Date();
   const img = 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80';
   const rows = [
-    ['TYPE-A', '1 Bedroom Apartment', 'One Bedroom', 'კომფორტული 1 საძინებლიანი აპარტამენტი', 'პრემიუმ სტილის 1 საძინებლიანი აპარტამენტი კომფორტული დასვენებისთვის.', 180, '', 3, 1, 1, '45 m²', img, '', '', 'Wi-Fi, კონდიციონერი, სამზარეულო, აივანი', 'Active', 'Yes', 1, now, now],
-    ['TYPE-B', '2 Bedroom Apartment Style 1', 'Two Bedroom', '2 საძინებლიანი აპარტამენტი — სტილი 1', 'ფართო 2 საძინებლიანი აპარტამენტი ოჯახისთვის ან მეგობრებისთვის.', 260, '', 5, 2, 1, '70 m²', img, '', '', 'Wi-Fi, კონდიციონერი, სამზარეულო, აივანი', 'Active', 'Yes', 2, now, now],
-    ['TYPE-C', '2 Bedroom Apartment Style 2', 'Two Bedroom', '2 საძინებლიანი აპარტამენტი — სტილი 2', 'განსხვავებული დიზაინის 2 საძინებლიანი აპარტამენტი კომფორტული სივრცით.', 280, '', 5, 2, 1, '75 m²', img, '', '', 'Wi-Fi, კონდიციონერი, სამზარეულო, აივანი', 'Active', 'Yes', 3, now, now],
-    ['TYPE-D', '2 Bedroom Apartment Style 3', 'Two Bedroom', '2 საძინებლიანი აპარტამენტი — სტილი 3', 'ელეგანტური 2 საძინებლიანი აპარტამენტი განსხვავებული ინტერიერით.', 300, '', 5, 2, 1, '80 m²', img, '', '', 'Wi-Fi, კონდიციონერი, სამზარეულო, აივანი', 'Active', 'Yes', 4, now, now],
-    ['VIP', 'VIP 1 Bedroom Apartment', 'VIP', 'VIP 1 საძინებლიანი აპარტამენტი', 'განსაკუთრებული VIP აპარტამენტი პრემიუმ დეტალებით და გამორჩეული კომფორტით.', 450, '', 3, 1, 1, '60 m²', img, '', '', 'Wi-Fi, კონდიციონერი, VIP სივრცე, აივანი', 'Active', 'Yes', 5, now, now]
+    ['TYPE-A', '1 Bedroom Apartment', '1 საძინებლიანი აპარტამენტი', '1 Bedroom Apartment', 'Апартаменты с 1 спальней', 'One Bedroom', 'ერთი საძინებელი', 'One Bedroom', 'Одна спальня', 'კომფორტული 1 საძინებლიანი აპარტამენტი', 'კომფორტული 1 საძინებლიანი აპარტამენტი', 'Comfortable 1 bedroom apartment', 'Комфортные апартаменты с 1 спальней', 'პრემიუმ სტილის 1 საძინებლიანი აპარტამენტი კომფორტული დასვენებისთვის.', 'პრემიუმ სტილის 1 საძინებლიანი აპარტამენტი კომფორტული დასვენებისთვის.', 'Premium 1 bedroom apartment for a comfortable stay.', 'Апартаменты премиум-стиля с 1 спальней для комфортного отдыха.', 'Wi-Fi, კონდიციონერი, სამზარეულო, აივანი', 'Wi-Fi, კონდიციონერი, სამზარეულო, აივანი', 'Wi-Fi, air conditioning, kitchen, balcony', 'Wi-Fi, кондиционер, кухня, балкон', 180, '', 3, 1, 1, '45 m²', img, '', '', 'Active', 'Yes', 1, now, now],
+    ['TYPE-B', '2 Bedroom Apartment Style 1', '2 საძინებლიანი აპარტამენტი — სტილი 1', '2 Bedroom Apartment Style 1', 'Апартаменты с 2 спальнями — стиль 1', 'Two Bedroom', 'ორი საძინებელი', 'Two Bedroom', 'Две спальни', 'ფართო 2 საძინებლიანი აპარტამენტი', 'ფართო 2 საძინებლიანი აპარტამენტი ოჯახისთვის ან მეგობრებისთვის.', 'Spacious 2 bedroom apartment', 'Просторные апартаменты с 2 спальнями', 'ფართო 2 საძინებლიანი აპარტამენტი ოჯახისთვის ან მეგობრებისთვის.', 'ფართო 2 საძინებლიანი აპარტამენტი ოჯახისთვის ან მეგობრებისთვის.', 'Spacious 2 bedroom apartment for family or friends.', 'Просторные апартаменты с 2 спальнями для семьи или друзей.', 'Wi-Fi, კონდიციონერი, სამზარეულო, აივანი', 'Wi-Fi, კონდიციონერი, სამზარეულო, აივანი', 'Wi-Fi, air conditioning, kitchen, balcony', 'Wi-Fi, кондиционер, кухня, балкон', 260, '', 5, 2, 1, '70 m²', img, '', '', 'Active', 'Yes', 2, now, now],
+    ['TYPE-C', '2 Bedroom Apartment Style 2', '2 საძინებლიანი აპარტამენტი — სტილი 2', '2 Bedroom Apartment Style 2', 'Апартаменты с 2 спальнями — стиль 2', 'Two Bedroom', 'ორი საძინებელი', 'Two Bedroom', 'Две спальни', 'განსხვავებული დიზაინის 2 საძინებლიანი აპარტამენტი', 'განსხვავებული დიზაინის 2 საძინებლიანი აპარტამენტი კომფორტული სივრცით.', '2 bedroom apartment with a different design', 'Апартаменты с 2 спальнями и другим дизайном', 'განსხვავებული დიზაინის 2 საძინებლიანი აპარტამენტი კომფორტული სივრცით.', 'განსხვავებული დიზაინის 2 საძინებლიანი აპარტამენტი კომფორტული სივრცით.', 'A comfortable 2 bedroom apartment with a different design.', 'Комфортные апартаменты с 2 спальнями и другим дизайном.', 'Wi-Fi, კონდიციონერი, სამზარეულო, აივანი', 'Wi-Fi, კონდიციონერი, სამზარეულო, აივანი', 'Wi-Fi, air conditioning, kitchen, balcony', 'Wi-Fi, кондиционер, кухня, балкон', 280, '', 5, 2, 1, '75 m²', img, '', '', 'Active', 'Yes', 3, now, now],
+    ['TYPE-D', '2 Bedroom Apartment Style 3', '2 საძინებლიანი აპარტამენტი — სტილი 3', '2 Bedroom Apartment Style 3', 'Апартаменты с 2 спальнями — стиль 3', 'Two Bedroom', 'ორი საძინებელი', 'Two Bedroom', 'Две спальни', 'ელეგანტური 2 საძინებლიანი აპარტამენტი', 'ელეგანტური 2 საძინებლიანი აპარტამენტი განსხვავებული ინტერიერით.', 'Elegant 2 bedroom apartment', 'Элегантные апартаменты с 2 спальнями', 'ელეგანტური 2 საძინებლიანი აპარტამენტი განსხვავებული ინტერიერით.', 'ელეგანტური 2 საძინებლიანი აპარტამენტი განსხვავებული ინტერიერით.', 'Elegant 2 bedroom apartment with a distinctive interior.', 'Элегантные апартаменты с 2 спальнями и особым интерьером.', 'Wi-Fi, კონდიციონერი, სამზარეულო, აივანი', 'Wi-Fi, კონდიციონერი, სამზარეულო, აივანი', 'Wi-Fi, air conditioning, kitchen, balcony', 'Wi-Fi, кондиционер, кухня, балкон', 300, '', 5, 2, 1, '80 m²', img, '', '', 'Active', 'Yes', 4, now, now],
+    ['VIP', 'VIP 1 Bedroom Apartment', 'VIP 1 საძინებლიანი აპარტამენტი', 'VIP 1 Bedroom Apartment', 'VIP апартаменты с 1 спальней', 'VIP', 'VIP', 'VIP', 'VIP', 'VIP 1 საძინებლიანი აპარტამენტი', 'განსაკუთრებული VIP აპარტამენტი პრემიუმ დეტალებით და გამორჩეული კომფორტით.', 'VIP 1 bedroom apartment', 'VIP апартаменты с 1 спальней', 'განსაკუთრებული VIP აპარტამენტი პრემიუმ დეტალებით და გამორჩეული კომფორტით.', 'განსაკუთრებული VIP აპარტამენტი პრემიუმ დეტალებით და გამორჩეული კომფორტით.', 'Special VIP apartment with premium details and comfort.', 'Особые VIP апартаменты с премиальными деталями и комфортом.', 'Wi-Fi, კონდიციონერი, VIP სივრცე, აივანი', 'Wi-Fi, კონდიციონერი, VIP სივრცე, აივანი', 'Wi-Fi, air conditioning, VIP space, balcony', 'Wi-Fi, кондиционер, VIP пространство, балкон', 450, '', 3, 1, 1, '60 m²', img, '', '', 'Active', 'Yes', 5, now, now]
   ];
   sheet.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
 }
@@ -186,37 +212,62 @@ function clearDemoData() {
 }
 
 function doGet(e) {
-  const action = e.parameter.action || 'health';
+  const params = e && e.parameter ? e.parameter : {};
+
+  if (params.payload) {
+    try {
+      const payload = JSON.parse(params.payload || '{}');
+      return handlePostAction_(payload);
+    } catch (error) {
+      return json_({ success: false, error: String(error) });
+    }
+  }
+
+  const action = params.action || 'health';
   if (action === 'health') return json_({ success: true, message: 'Mamu Luxury API is working' });
   if (action === 'roomTypes') return json_({ success: true, data: getRows_(SHEETS.ROOM_TYPES, { Status: 'Active' }) });
   if (action === 'rooms') return json_({ success: true, data: getRows_(SHEETS.ROOMS) });
   if (action === 'gallery') return json_({ success: true, data: getRows_(SHEETS.GALLERY, { Status: 'Active' }) });
   if (action === 'videos') return json_({ success: true, data: getRows_(SHEETS.VIDEOS, { Status: 'Active' }) });
   if (action === 'settings') return json_({ success: true, data: getSettings_() });
-  if (action === 'availability') return json_(checkAvailability_(e.parameter));
-  if (action === 'calendar') return json_(getCalendar_(e.parameter));
+  if (action === 'availability') return json_(checkAvailability_(params));
+  if (action === 'calendar') return json_(getCalendar_(params));
   return json_({ success: false, error: 'Unknown action' });
 }
 
 function doPost(e) {
   try {
     const payload = JSON.parse(e.postData.contents || '{}');
-    const action = payload.action || 'createBooking';
-    if (action === 'createBooking') return createBooking_(payload);
-    if (action === 'adminLogin') return adminLogin_(payload);
-    if (action === 'updateBookingStatus') return updateBookingStatus_(payload);
-    if (action === 'assignRoomToBooking') return assignRoomToBooking_(payload);
-    if (action === 'createManualBlock') return createManualBlock_(payload);
-    if (action === 'updateManualBlock') return updateManualBlock_(payload);
-    if (action === 'upsertRoomType') return upsertRow_(SHEETS.ROOM_TYPES, 'TypeID', payload.data);
-    if (action === 'upsertRoom') return upsertRow_(SHEETS.ROOMS, 'RoomID', payload.data);
-    if (action === 'upsertGallery') return upsertRow_(SHEETS.GALLERY, 'ID', payload.data);
-    if (action === 'upsertVideo') return upsertRow_(SHEETS.VIDEOS, 'ID', payload.data);
-    if (action === 'updateSetting') return updateSetting_(payload.key, payload.value);
-    return json_({ success: false, error: 'Unknown action' });
+    return handlePostAction_(payload);
   } catch (error) {
     return json_({ success: false, error: String(error) });
   }
+}
+
+function handlePostAction_(payload) {
+  const action = payload.action || 'createBooking';
+  if (action === 'createBooking') return createBooking_(payload);
+  if (action === 'adminLogin') return adminLogin_(payload);
+  if (action === 'updateBookingStatus') return updateBookingStatus_(payload);
+  if (action === 'assignRoomToBooking') return assignRoomToBooking_(payload);
+  if (action === 'createManualBlock') return createManualBlock_(payload);
+  if (action === 'updateManualBlock') return updateManualBlock_(payload);
+  if (action === 'upsertRoomType') return upsertRow_(SHEETS.ROOM_TYPES, 'TypeID', normalizeRoomTypeData_(payload.data));
+  if (action === 'upsertRoom') return upsertRow_(SHEETS.ROOMS, 'RoomID', payload.data);
+  if (action === 'upsertGallery') return upsertRow_(SHEETS.GALLERY, 'ID', payload.data);
+  if (action === 'upsertVideo') return upsertRow_(SHEETS.VIDEOS, 'ID', payload.data);
+  if (action === 'updateSetting') return updateSetting_(payload.key, payload.value);
+  return json_({ success: false, error: 'Unknown action' });
+}
+
+function normalizeRoomTypeData_(data) {
+  data = data || {};
+  data.Name = data.Name || data.Name_KA || data.Name_EN || data.Name_RU || '';
+  data.Category = data.Category || data.Category_KA || data.Category_EN || data.Category_RU || '';
+  data.ShortDescription = data.ShortDescription || data.ShortDescription_KA || data.ShortDescription_EN || data.ShortDescription_RU || '';
+  data.FullDescription = data.FullDescription || data.FullDescription_KA || data.FullDescription_EN || data.FullDescription_RU || '';
+  data.Amenities = data.Amenities || data.Amenities_KA || data.Amenities_EN || data.Amenities_RU || '';
+  return data;
 }
 
 function createBooking_(data) {
