@@ -85,6 +85,38 @@ function collectRoomTypeFormDataForUpload() {
   return data;
 }
 
+function getRoomTypeTitleForGallery(data) {
+  return data.Name_KA || data.Name || data.Name_EN || data.Name_RU || data.TypeID || 'Apartment photo';
+}
+
+function makeGalleryId() {
+  return 'GAL-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+}
+
+async function addUploadedPhotoToGalleryAlbum(url, fileName) {
+  if (!url) return;
+
+  const data = collectRoomTypeFormDataForUpload();
+  const title = getRoomTypeTitleForGallery(data);
+
+  const result = await apiPost('upsertGallery', {
+    data: {
+      ID: makeGalleryId(),
+      Title: title + (fileName ? ' — ' + fileName : ''),
+      ImageUrl: url,
+      Category: 'Room',
+      Status: 'Active',
+      SortOrder: Date.now(),
+      CreatedAt: new Date().toISOString(),
+      UpdatedAt: new Date().toISOString()
+    }
+  });
+
+  if (!result.success) {
+    throw new Error(result.error || 'ფოტო ოთახზე დაემატა, მაგრამ გალერეის ალბომში ჩაწერა ვერ მოხერხდა');
+  }
+}
+
 async function autoSaveRoomTypePhotos() {
   const data = collectRoomTypeFormDataForUpload();
   const result = await apiPost('upsertRoomType', { data: data });
@@ -105,10 +137,11 @@ async function uploadRoomTypeMainImage() {
     return;
   }
 
+  const file = input.files[0];
   setUploadStatus('მთავარი ფოტო იტვირთება...');
 
   try {
-    const result = await uploadFileToImgbb(input.files[0]);
+    const result = await uploadFileToImgbb(file);
     const url = result.url || result.displayUrl || '';
 
     if (!url) {
@@ -120,7 +153,10 @@ async function uploadRoomTypeMainImage() {
     setUploadStatus('ფოტო აიტვირთა, ახლა ოთახზე ინახება...');
     await autoSaveRoomTypePhotos();
 
-    setUploadStatus('მთავარი ფოტო აიტვირთა და ავტომატურად დაემატა ამ ოთახს ✅');
+    setUploadStatus('ფოტო ოთახზე შეინახა, ახლა გალერეის ალბომში ემატება...');
+    await addUploadedPhotoToGalleryAlbum(url, file.name || 'main-photo');
+
+    setUploadStatus('მთავარი ფოტო აიტვირთა, ოთახს დაემატა და გალერეის ალბომშიც ჩაიწერა ✅');
 
     if (typeof loadRoomTypes === 'function') {
       setTimeout(loadRoomTypes, 700);
@@ -140,6 +176,7 @@ async function uploadRoomTypeGalleryImage() {
   }
 
   const files = Array.from(input.files);
+  const uploadedPhotos = [];
   let uploaded = 0;
 
   setUploadStatus('ფოტოები იტვირთება: 0/' + files.length);
@@ -154,6 +191,7 @@ async function uploadRoomTypeGalleryImage() {
       }
 
       appendUrlToInput(galleryInput, url);
+      uploadedPhotos.push({ url: url, fileName: file.name || 'gallery-photo' });
       uploaded += 1;
       setUploadStatus('ფოტოები იტვირთება: ' + uploaded + '/' + files.length);
     }
@@ -161,7 +199,12 @@ async function uploadRoomTypeGalleryImage() {
     setUploadStatus('ფოტოები აიტვირთა, ახლა ოთახზე ინახება...');
     await autoSaveRoomTypePhotos();
 
-    setUploadStatus('აიტვირთა ' + uploaded + ' ფოტო და ავტომატურად დაემატა ამ ოთახს ✅');
+    setUploadStatus('ფოტოები ოთახზე შეინახა, ახლა გალერეის ალბომში ემატება...');
+    for (const photo of uploadedPhotos) {
+      await addUploadedPhotoToGalleryAlbum(photo.url, photo.fileName);
+    }
+
+    setUploadStatus('აიტვირთა ' + uploaded + ' ფოტო, ოთახს დაემატა და გალერეის ალბომშიც ჩაიწერა ✅');
 
     if (typeof loadRoomTypes === 'function') {
       setTimeout(loadRoomTypes, 700);
