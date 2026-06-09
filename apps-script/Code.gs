@@ -3,6 +3,7 @@ const SHEETS = {
   ROOMS: 'Rooms',
   BOOKINGS: 'Bookings',
   MANUAL_BLOCKS: 'ManualBlocks',
+  PRICE_RULES: 'PriceRules',
   GALLERY: 'Gallery',
   VIDEOS: 'Videos',
   SETTINGS: 'Settings',
@@ -31,6 +32,10 @@ const HEADERS = {
     'BlockID', 'CreatedAt', 'RoomID', 'RoomNumber', 'RoomTypeID', 'StartDate', 'EndDate',
     'Source', 'GuestName', 'Phone', 'Status', 'Reason', 'AdminNote', 'UpdatedAt'
   ],
+  PriceRules: [
+    'RuleID', 'RoomTypeID', 'StartDate', 'EndDate', 'Price', 'MinNights',
+    'Status', 'Note', 'SortOrder', 'CreatedAt', 'UpdatedAt'
+  ],
   Gallery: ['ID', 'Title', 'ImageUrl', 'Category', 'Status', 'SortOrder', 'CreatedAt', 'UpdatedAt'],
   Videos: ['ID', 'Title', 'YoutubeUrl', 'Category', 'Status', 'SortOrder', 'CreatedAt', 'UpdatedAt'],
   Settings: ['Key', 'Value', 'Description', 'UpdatedAt'],
@@ -45,6 +50,7 @@ const VALIDATIONS = {
   BOOKING_STATUS: ['New', 'Confirmed', 'CheckedIn', 'CheckedOut', 'Cancelled', 'NoShow'],
   BLOCK_SOURCE: ['Booking.com', 'Airbnb', 'Expedia', 'WhatsApp', 'Phone', 'Walk-in', 'Maintenance', 'Owner', 'Other'],
   BLOCK_STATUS: ['Active', 'Cancelled', 'Completed'],
+  PRICE_RULE_STATUS: ['Active', 'Inactive'],
   GALLERY_CATEGORY: ['Room', 'Reception', 'Terrace', 'Lobby', 'View', 'Interior', 'Exterior', 'Other'],
   GALLERY_STATUS: ['Active', 'Inactive'],
   VIDEO_CATEGORY: ['Apartment', 'General', 'Review', 'Other'],
@@ -77,7 +83,7 @@ function setupMamuLuxurySystem() {
   setupValidations_(ss);
   addSampleData();
   log_('SETUP', 'System initialized or updated');
-  SpreadsheetApp.getUi().alert('მზადაა! სისტემა განახლდა. ფოტოები აიტვირთება Google Drive-ში.');
+  SpreadsheetApp.getUi().alert('მზადაა! სისტემა განახლდა. დაემატა PriceRules ფასების კალენდრისთვის.');
 }
 
 function fixValidationsOnly() {
@@ -181,6 +187,7 @@ function sanitizeValidationColumns_(ss) {
   sanitizeColumn_(ss.getSheetByName(SHEETS.ROOM_TYPES), 31, VALIDATIONS.ROOM_TYPE_STATUS, 'Active');
   sanitizeColumn_(ss.getSheetByName(SHEETS.ROOM_TYPES), 32, VALIDATIONS.YES_NO, 'Yes');
   sanitizeColumn_(ss.getSheetByName(SHEETS.ROOMS), 5, VALIDATIONS.ROOM_STATUS, 'Active');
+  sanitizeColumn_(ss.getSheetByName(SHEETS.PRICE_RULES), 7, VALIDATIONS.PRICE_RULE_STATUS, 'Active');
   sanitizeColumn_(ss.getSheetByName(SHEETS.VIDEOS), 4, VALIDATIONS.VIDEO_CATEGORY, 'General');
   sanitizeColumn_(ss.getSheetByName(SHEETS.VIDEOS), 5, VALIDATIONS.VIDEO_STATUS, 'Active');
 }
@@ -203,6 +210,7 @@ function setupValidations_(ss) {
   setValidation_(ss.getSheetByName(SHEETS.BOOKINGS), 16, VALIDATIONS.BOOKING_STATUS);
   setValidation_(ss.getSheetByName(SHEETS.MANUAL_BLOCKS), 8, VALIDATIONS.BLOCK_SOURCE);
   setValidation_(ss.getSheetByName(SHEETS.MANUAL_BLOCKS), 11, VALIDATIONS.BLOCK_STATUS);
+  setValidation_(ss.getSheetByName(SHEETS.PRICE_RULES), 7, VALIDATIONS.PRICE_RULE_STATUS);
   setValidation_(ss.getSheetByName(SHEETS.GALLERY), 4, VALIDATIONS.GALLERY_CATEGORY);
   setValidation_(ss.getSheetByName(SHEETS.GALLERY), 5, VALIDATIONS.GALLERY_STATUS);
   setValidation_(ss.getSheetByName(SHEETS.VIDEOS), 4, VALIDATIONS.VIDEO_CATEGORY);
@@ -275,7 +283,7 @@ function seedVideos_(sheet) {
 }
 
 function clearDemoData() {
-  [SHEETS.ROOM_TYPES, SHEETS.ROOMS, SHEETS.BOOKINGS, SHEETS.MANUAL_BLOCKS, SHEETS.GALLERY, SHEETS.VIDEOS].forEach(function(name) {
+  [SHEETS.ROOM_TYPES, SHEETS.ROOMS, SHEETS.BOOKINGS, SHEETS.MANUAL_BLOCKS, SHEETS.PRICE_RULES, SHEETS.GALLERY, SHEETS.VIDEOS].forEach(function(name) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
     if (sheet && sheet.getLastRow() > 1) sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).clearContent();
   });
@@ -292,6 +300,9 @@ function doGet(e) {
   if (action === 'health') return json_({ success: true, message: 'Mamu Luxury API is working' });
   if (action === 'roomTypes') return json_({ success: true, data: getRows_(SHEETS.ROOM_TYPES, { Status: 'Active' }) });
   if (action === 'rooms') return json_({ success: true, data: getRows_(SHEETS.ROOMS) });
+  if (action === 'bookings') return json_({ success: true, data: getRows_(SHEETS.BOOKINGS) });
+  if (action === 'priceRules') return json_({ success: true, data: getRows_(SHEETS.PRICE_RULES) });
+  if (action === 'priceQuote') return json_(calculatePriceQuote_(params.roomTypeId || params.RoomTypeID, params.checkin || params.StartDate, params.checkout || params.EndDate));
   if (action === 'gallery') return json_({ success: true, data: getRows_(SHEETS.GALLERY, { Status: 'Active' }) });
   if (action === 'videos') return json_({ success: true, data: getRows_(SHEETS.VIDEOS, { Status: 'Active' }) });
   if (action === 'settings') return json_({ success: true, data: getSettings_() });
@@ -316,6 +327,8 @@ function handlePostAction_(payload) {
   if (action === 'updateManualBlock') return updateManualBlock_(payload);
   if (action === 'upsertRoomType') return upsertRow_(SHEETS.ROOM_TYPES, 'TypeID', normalizeRoomTypeData_(payload.data));
   if (action === 'upsertRoom') return upsertRow_(SHEETS.ROOMS, 'RoomID', payload.data);
+  if (action === 'upsertPriceRule') return upsertPriceRule_(payload.data || payload);
+  if (action === 'deletePriceRule') return deletePriceRule_(payload.ruleId || payload.RuleID);
   if (action === 'upsertGallery') return upsertRow_(SHEETS.GALLERY, 'ID', payload.data);
   if (action === 'upsertVideo') return upsertRow_(SHEETS.VIDEOS, 'ID', payload.data);
   if (action === 'updateSetting') return updateSetting_(payload.key, payload.value);
@@ -337,7 +350,6 @@ function uploadImage_(payload) {
   try {
     const raw = String(payload.imageBase64 || '');
     if (!raw) return json_({ success: false, error: 'ფოტო არ არის მიღებული.' });
-
     const dataMatch = raw.match(/^data:([^;]+);base64,(.+)$/);
     const mimeType = dataMatch ? dataMatch[1] : 'image/jpeg';
     const base64 = dataMatch ? dataMatch[2] : raw;
@@ -347,17 +359,9 @@ function uploadImage_(payload) {
     const blob = Utilities.newBlob(bytes, mimeType, safeName);
     const folder = getOrCreateUploadFolder_();
     const file = folder.createFile(blob);
-
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-
     const id = file.getId();
-    return json_({
-      success: true,
-      fileId: id,
-      url: 'https://drive.google.com/thumbnail?id=' + id + '&sz=w1600',
-      displayUrl: 'https://drive.google.com/thumbnail?id=' + id + '&sz=w1600',
-      driveUrl: file.getUrl()
-    });
+    return json_({ success: true, fileId: id, url: 'https://drive.google.com/thumbnail?id=' + id + '&sz=w1600', displayUrl: 'https://drive.google.com/thumbnail?id=' + id + '&sz=w1600', driveUrl: file.getUrl() });
   } catch (error) {
     return json_({ success: false, error: String(error) });
   }
@@ -366,7 +370,6 @@ function uploadImage_(payload) {
 function getOrCreateUploadFolder_() {
   const settings = getSettings_();
   const existingId = settings.drive_upload_folder_id;
-
   if (existingId) {
     try {
       const existingFolder = DriveApp.getFolderById(existingId);
@@ -374,7 +377,6 @@ function getOrCreateUploadFolder_() {
       return existingFolder;
     } catch (error) {}
   }
-
   const folderName = 'Mamu Luxury Apartments Uploads';
   const folders = DriveApp.getFoldersByName(folderName);
   const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
@@ -396,14 +398,13 @@ function createBooking_(data) {
   const availability = checkAvailability_({ roomTypeId: data.roomTypeId, checkin: data.checkin, checkout: data.checkout });
   if (!availability.success || availability.availableRooms.length === 0) return json_({ success: false, error: 'ამ თარიღებში არჩეული ნომრის ტიპი დაკავებულია.' });
   const roomType = findById_(SHEETS.ROOM_TYPES, 'TypeID', data.roomTypeId) || {};
-  const nights = calculateNights_(data.checkin, data.checkout);
-  const price = Number(roomType.Price || 0);
-  const total = nights * price;
+  const quote = calculatePriceQuote_(data.roomTypeId, data.checkin, data.checkout);
+  if (!quote.success) return json_(quote);
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEETS.BOOKINGS);
   const bookingId = 'BK-' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss');
-  sheet.appendRow([bookingId, new Date(), data.roomTypeId || '', roomType.Name || data.roomTypeName || '', '', '', data.name || '', data.phone || '', data.email || '', data.checkin || '', data.checkout || '', nights, data.guests || '', total, data.message || data.note || '', 'New', '', new Date()]);
-  log_('BOOKING_CREATED', bookingId);
-  return json_({ success: true, bookingId: bookingId, availableRooms: availability.availableRooms });
+  sheet.appendRow([bookingId, new Date(), data.roomTypeId || '', roomType.Name || data.roomTypeName || '', '', '', data.name || '', data.phone || '', data.email || '', data.checkin || '', data.checkout || '', quote.nights, data.guests || '', quote.total, data.message || data.note || '', 'New', '', new Date()]);
+  log_('BOOKING_CREATED', bookingId + ' / total: ' + quote.total);
+  return json_({ success: true, bookingId: bookingId, availableRooms: availability.availableRooms, priceQuote: quote });
 }
 
 function createManualBlock_(payload) {
@@ -427,14 +428,11 @@ function checkAvailability_(params) {
   const checkin = params.checkin || params.StartDate;
   const checkout = params.checkout || params.EndDate;
   if (!checkin || !checkout) return { success: false, error: 'checkin და checkout აუცილებელია' };
-
   let rooms = getRows_(SHEETS.ROOMS, { Status: 'Active' });
   if (roomTypeId) rooms = rooms.filter(function(room) { return String(room.TypeID) === String(roomTypeId); });
   if (roomId) rooms = rooms.filter(function(room) { return String(room.RoomID) === String(roomId); });
-
   const activeBookings = getRows_(SHEETS.BOOKINGS).filter(function(b) { return ['Confirmed', 'CheckedIn'].indexOf(String(b.Status)) !== -1; });
   const activeBlocks = getRows_(SHEETS.MANUAL_BLOCKS, { Status: 'Active' });
-
   const availableRooms = rooms.filter(function(room) {
     const booked = activeBookings.some(function(b) { return String(b.RoomID) === String(room.RoomID) && rangesOverlap_(checkin, checkout, b.CheckIn, b.CheckOut); });
     const blocked = activeBlocks.some(function(block) { return String(block.RoomID) === String(room.RoomID) && rangesOverlap_(checkin, checkout, block.StartDate, block.EndDate); });
@@ -452,6 +450,76 @@ function getCalendar_(params) {
     bookings: getRows_(SHEETS.BOOKINGS).filter(function(b) { return ['New', 'Confirmed', 'CheckedIn'].indexOf(String(b.Status)) !== -1 && rangesOverlap_(start, end, b.CheckIn, b.CheckOut); }),
     blocks: getRows_(SHEETS.MANUAL_BLOCKS, { Status: 'Active' }).filter(function(block) { return rangesOverlap_(start, end, block.StartDate, block.EndDate); })
   };
+}
+
+function upsertPriceRule_(data) {
+  data = data || {};
+  if (!data.RoomTypeID) return json_({ success: false, error: 'RoomTypeID აუცილებელია' });
+  if (!data.StartDate || !data.EndDate) return json_({ success: false, error: 'StartDate და EndDate აუცილებელია' });
+  if (!Number(data.Price)) return json_({ success: false, error: 'ფასი აუცილებელია' });
+  data.RuleID = data.RuleID || 'RATE-' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss');
+  data.Status = data.Status || 'Active';
+  data.SortOrder = data.SortOrder || 1;
+  return upsertRow_(SHEETS.PRICE_RULES, 'RuleID', data);
+}
+
+function deletePriceRule_(ruleId) {
+  if (!ruleId) return json_({ success: false, error: 'RuleID აუცილებელია' });
+  return updatePriceRuleFields_(ruleId, { Status: 'Inactive' });
+}
+
+function updatePriceRuleFields_(ruleId, fields) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEETS.PRICE_RULES);
+  const rows = sheet.getDataRange().getValues();
+  const headers = rows[0];
+  const idIndex = headers.indexOf('RuleID');
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][idIndex]) === String(ruleId)) {
+      Object.keys(fields).forEach(function(key) {
+        const index = headers.indexOf(key);
+        if (index >= 0) sheet.getRange(i + 1, index + 1).setValue(fields[key]);
+      });
+      const updatedIndex = headers.indexOf('UpdatedAt');
+      if (updatedIndex >= 0) sheet.getRange(i + 1, updatedIndex + 1).setValue(new Date());
+      return json_({ success: true });
+    }
+  }
+  return json_({ success: false, error: 'Rule not found' });
+}
+
+function calculatePriceQuote_(roomTypeId, checkin, checkout) {
+  if (!roomTypeId || !checkin || !checkout) return { success: false, error: 'roomTypeId, checkin და checkout აუცილებელია' };
+  const roomType = findById_(SHEETS.ROOM_TYPES, 'TypeID', roomTypeId) || {};
+  const basePrice = Number(roomType.Price || 0);
+  const nights = calculateNights_(checkin, checkout);
+  const startDate = normalizeDate_(checkin);
+  const rules = getRows_(SHEETS.PRICE_RULES, { Status: 'Active' }).filter(function(rule) { return String(rule.RoomTypeID) === String(roomTypeId); });
+  const breakdown = [];
+  let total = 0;
+  for (let i = 0; i < nights; i++) {
+    const day = new Date(startDate);
+    day.setDate(startDate.getDate() + i);
+    const dayKey = dateKey_(day);
+    const rule = findPriceRuleForDay_(rules, dayKey);
+    const price = rule ? Number(rule.Price || basePrice) : basePrice;
+    total += price;
+    breakdown.push({ date: dayKey, price: price, source: rule ? rule.RuleID : 'base' });
+  }
+  return { success: true, roomTypeId: roomTypeId, nights: nights, basePrice: basePrice, total: total, average: nights ? Math.round(total / nights) : basePrice, breakdown: breakdown };
+}
+
+function findPriceRuleForDay_(rules, dayKey) {
+  const matching = rules.filter(function(rule) {
+    if (!rule.StartDate || !rule.EndDate) return false;
+    return dayKey >= dateKey_(rule.StartDate) && dayKey <= dateKey_(rule.EndDate);
+  });
+  matching.sort(function(a, b) { return Number(a.SortOrder || 9999) - Number(b.SortOrder || 9999); });
+  return matching[0] || null;
+}
+
+function dateKey_(value) {
+  const date = normalizeDate_(value);
+  return Utilities.formatDate(date, Session.getScriptTimeZone(), 'yyyy-MM-dd');
 }
 
 function assignRoomToBooking_(payload) {
