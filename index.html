@@ -21,14 +21,9 @@
         <a href="#rooms" data-i18n="nav_rooms">ნომრები</a>
         <a href="#gallery" data-i18n="nav_gallery">გალერეა</a>
         <a href="#videos" data-i18n="nav_videos">ვიდეო</a>
-        <a href="#booking" data-i18n="nav_booking">დაჯავშნა</a>
+        <a href="https://booking-116144.otelms.com/booking/rooms" target="_blank" data-i18n="nav_booking">დაჯავშნა</a>
       </div>
       <div class="nav-tools">
-        <div class="language-switcher currency-switcher">
-          <button type="button" data-currency="GEL">₾</button>
-          <button type="button" data-currency="USD">$</button>
-          <button type="button" data-currency="EUR">€</button>
-        </div>
         <div class="language-switcher">
           <button type="button" data-lang="ka">KA</button>
           <button type="button" data-lang="en">EN</button>
@@ -47,7 +42,7 @@
         <p id="heroSubtitle">პრემიუმ აპარტამენტები ბათუმში</p>
         <div class="actions">
           <a href="#rooms" class="liquid-btn" data-i18n="hero_rooms_btn">აპარტამენტების ნახვა</a>
-          <a href="#booking" class="ghost-btn" data-i18n="hero_booking_btn">დაჯავშნა</a>
+          <a href="https://booking-116144.otelms.com/booking/rooms" target="_blank" class="ghost-btn" data-i18n="hero_booking_btn">დაჯავშნა</a>
         </div>
       </div>
     </section>
@@ -58,36 +53,6 @@
         <h2 class="section-title" data-i18n="rooms_title">აპარტამენტების ტიპები</h2>
       </div>
       <div class="grid" id="roomTypes"></div>
-    </section>
-
-    <section class="section reveal" id="booking">
-      <div class="booking-shell">
-        <div>
-          <span class="eyebrow">Booking Request</span>
-          <h2 class="section-title" data-i18n="booking_title">დაჯავშნის მოთხოვნა</h2>
-          <p class="muted" data-i18n="booking_text">აირჩიე ნომრის ტიპი და თარიღები. სისტემა შეამოწმებს ხელმისაწვდომობას და მოთხოვნას Google Sheets-ში ჩაწერს.</p>
-        </div>
-        <form id="bookingForm" class="lux-form">
-          <select name="roomTypeId" id="bookingRoomType" required>
-            <option value="" data-i18n="select_room_type">აირჩიე ნომრის ტიპი</option>
-          </select>
-          <div class="form-row">
-            <input type="date" name="checkin" required />
-            <input type="date" name="checkout" required />
-          </div>
-          <div class="form-row">
-            <input type="text" name="name" data-i18n-placeholder="name_placeholder" placeholder="სახელი და გვარი" required />
-            <input type="tel" name="phone" data-i18n-placeholder="phone_placeholder" placeholder="ტელეფონი" required />
-          </div>
-          <div class="form-row">
-            <input type="email" name="email" data-i18n-placeholder="email_placeholder" placeholder="ელფოსტა სურვილისამებრ" />
-            <input type="number" name="guests" min="1" data-i18n-placeholder="guests_placeholder" placeholder="სტუმრები" required />
-          </div>
-          <textarea name="message" data-i18n-placeholder="message_placeholder" placeholder="კომენტარი"></textarea>
-          <button class="liquid-btn" type="submit" data-i18n="send_request">მოთხოვნის გაგზავნა</button>
-          <p id="bookingStatus" class="status-text"></p>
-        </form>
-      </div>
     </section>
 
     <section class="section reveal" id="gallery">
@@ -125,6 +90,5 @@
   <script src="js/config.js"></script>
   <script src="js/api.js"></script>
   <script src="js/main.js"></script>
-  <script src="js/date-range-picker.js"></script>
 </body>
 </html>
