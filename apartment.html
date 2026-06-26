@@ -17,11 +17,18 @@
     <nav>
       <a class="brand" href="index.html">Mamu Luxury Apartments</a>
       <div class="nav-links">
-        <a href="index.html#rooms">ნომრები</a>
-        <a href="index.html#gallery">გალერეა</a>
-        <a href="index.html#booking">დაჯავშნა</a>
+        <a href="index.html#rooms" data-i18n="nav_rooms">ნომრები</a>
+        <a href="index.html#gallery" data-i18n="nav_gallery">გალერეა</a>
+        <a href="https://booking-116144.otelms.com/booking/rooms" target="_blank" data-i18n="nav_booking">დაჯავშნა</a>
       </div>
-      <button class="theme-toggle" onclick="toggleTheme()" aria-label="Theme">◐</button>
+      <div class="nav-tools">
+        <div class="language-switcher">
+          <button type="button" data-lang="ka">KA</button>
+          <button type="button" data-lang="en">EN</button>
+          <button type="button" data-lang="ru">RU</button>
+        </div>
+        <button class="theme-toggle" onclick="toggleTheme()" aria-label="Theme">◐</button>
+      </div>
     </nav>
   </header>
 
@@ -34,8 +41,8 @@
           <p class="muted" id="roomDescription"></p>
           <div class="meta detail-meta" id="roomMeta"></div>
           <div class="actions">
-            <a href="#detailBooking" class="liquid-btn">დაჯავშნა</a>
-            <a href="index.html#rooms" class="ghost-btn">უკან დაბრუნება</a>
+            <a href="https://booking-116144.otelms.com/booking/rooms" target="_blank" class="liquid-btn" id="detailBookBtn" data-i18n="book_btn">დაჯავშნა</a>
+            <a href="index.html#rooms" class="ghost-btn" data-i18n="back_btn">უკან დაბრუნება</a>
           </div>
         </div>
         <div class="detail-image-wrap">
@@ -47,7 +54,7 @@
     <section class="section" id="amenitiesSection">
       <div class="section-head">
         <span class="eyebrow">Amenities</span>
-        <h2 class="section-title">კომფორტები</h2>
+        <h2 class="section-title" data-i18n="amenities_title">კომფორტები</h2>
       </div>
       <div class="amenities-grid" id="amenitiesGrid"></div>
     </section>
@@ -55,42 +62,9 @@
     <section class="section">
       <div class="section-head">
         <span class="eyebrow">Gallery</span>
-        <h2 class="section-title">ფოტოები</h2>
+        <h2 class="section-title" data-i18n="gallery_title">ფოტოები</h2>
       </div>
       <div class="gallery-grid" id="detailGallery"></div>
-    </section>
-
-    <section class="section" id="detailBooking">
-      <div class="booking-shell">
-        <div>
-          <span class="eyebrow">Booking Request</span>
-          <h2 class="section-title">ამ ნომრის დაჯავშნა</h2>
-          <p class="muted">მოთხოვნა გაიგზავნება Google Sheets-ში და Admin Panel-ში გამოჩნდება ახალი ჯავშნის სახით.</p>
-          <div class="calendar-preview" id="availabilityBox">
-            <strong>ხელმისაწვდომობის შემოწმება</strong>
-            <span>აირჩიე თარიღები და შეამოწმე თავისუფალი ნომერი.</span>
-          </div>
-        </div>
-        <form id="detailBookingForm" class="lux-form">
-          <input type="hidden" name="roomTypeId" id="detailRoomTypeId" />
-          <div class="form-row calendar-row">
-            <label class="date-field">შესვლა<input type="date" name="checkin" id="detailCheckin" required /></label>
-            <label class="date-field">გასვლა<input type="date" name="checkout" id="detailCheckout" required /></label>
-          </div>
-          <button class="ghost-btn" type="button" id="checkAvailabilityBtn">ხელმისაწვდომობის შემოწმება</button>
-          <div class="form-row">
-            <input type="text" name="name" placeholder="სახელი და გვარი" required />
-            <input type="tel" name="phone" placeholder="ტელეფონი" required />
-          </div>
-          <div class="form-row">
-            <input type="email" name="email" placeholder="ელფოსტა სურვილისამებრ" />
-            <input type="number" name="guests" min="1" placeholder="სტუმრები" required />
-          </div>
-          <textarea name="message" placeholder="კომენტარი"></textarea>
-          <button class="liquid-btn" type="submit">მოთხოვნის გაგზავნა</button>
-          <p id="detailBookingStatus" class="status-text"></p>
-        </form>
-      </div>
     </section>
   </main>
 
