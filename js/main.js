@@ -71,6 +71,22 @@ function setExternalBookingLinks() {
   });
 }
 
+function loadPhotoViewerAssets() {
+  if (!document.querySelector('link[href="css/photo-lightbox.css"]')) {
+    const css = document.createElement('link');
+    css.rel = 'stylesheet';
+    css.href = 'css/photo-lightbox.css';
+    document.head.appendChild(css);
+  }
+
+  if (!document.querySelector('script[src="js/photo-lightbox.js"]')) {
+    const script = document.createElement('script');
+    script.src = 'js/photo-lightbox.js';
+    script.defer = true;
+    document.body.appendChild(script);
+  }
+}
+
 function setLanguage(lang) {
   CURRENT_LANG = I18N[lang] ? lang : CURRENT_LANG;
   localStorage.setItem('site_lang', CURRENT_LANG);
@@ -270,6 +286,7 @@ function renderVideos(items) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+  loadPhotoViewerAssets();
   initLanguageSwitcher();
   loadSite();
 });
