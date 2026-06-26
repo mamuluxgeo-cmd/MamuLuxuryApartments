@@ -153,7 +153,12 @@ async function loadSite() {
 function renderSettings(settings) {
   document.title = settings.site_title || 'Mamu Luxury Apartments';
   document.getElementById('siteTitle').textContent = settings.site_title || 'Mamu Luxury Apartments';
-  document.getElementById('heroTitle').textContent = settings.hero_title || 'Mamu Luxury Apartments';
+
+  const heroTitle = document.getElementById('heroTitle');
+  if (heroTitle) {
+    heroTitle.textContent = '';
+    heroTitle.style.display = 'none';
+  }
 
   const heroSubtitle = document.getElementById('heroSubtitle');
   if (heroSubtitle) heroSubtitle.textContent = '';
