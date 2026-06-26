@@ -59,8 +59,49 @@ function escapeHtml(value) {
   });
 }
 
+function upgradeImageUrl(url, width) {
+  const value = String(url || '').trim();
+  if (!value) return '';
+  const targetWidth = width || 1600;
+
+  if (value.indexOf('googleusercontent.com') !== -1) {
+    if (/=s\d+[^/]*$/i.test(value)) return value.replace(/=s\d+[^/]*$/i, '=s' + targetWidth);
+    if (/=w\d+[^/]*$/i.test(value)) return value.replace(/=w\d+[^/]*$/i, '=w' + targetWidth);
+    if (/-w\d+-h\d+/i.test(value)) return value.replace(/-w\d+-h\d+/i, '-w' + targetWidth + '-h' + Math.round(targetWidth * 0.75));
+  }
+
+  return value;
+}
+
 function splitGallery(value) {
-  return String(value || '').split(',').map(function (v) { return v.trim(); }).filter(Boolean);
+  return String(value || '')
+    .split(/[\n,;|]+/)
+    .map(function (v) { return v.trim(); })
+    .filter(Boolean);
+}
+
+function uniqueImages(images) {
+  const seen = {};
+  return images.filter(function (url) {
+    const clean = String(url || '').trim();
+    if (!clean || seen[clean]) return false;
+    seen[clean] = true;
+    return true;
+  });
+}
+
+function getRoomGalleryImages(room) {
+  return uniqueImages([
+    room.MainImage,
+    room.GalleryImages,
+    room.Gallery,
+    room.Gallery_Images,
+    room.ImageUrls,
+    room.ImageURLS,
+    room.Images
+  ].reduce(function (all, value) {
+    return all.concat(splitGallery(value));
+  }, []));
 }
 
 function splitAmenities(value) {
@@ -130,12 +171,15 @@ function renderRoom(room) {
   const fullDescription = getLocalizedField(room, 'FullDescription');
   const shortDescription = getLocalizedField(room, 'ShortDescription');
   const amenities = getLocalizedField(room, 'Amenities');
+  const mainImage = upgradeImageUrl(room.MainImage || document.getElementById('roomMainImage').src, 1800);
 
   document.title = name + ' — Mamu Luxury Apartments';
   document.getElementById('roomCategory').textContent = category;
   document.getElementById('roomName').textContent = name;
   document.getElementById('roomDescription').textContent = fullDescription || shortDescription || '';
-  document.getElementById('roomMainImage').src = room.MainImage || document.getElementById('roomMainImage').src;
+  document.getElementById('roomMainImage').src = mainImage;
+  document.getElementById('roomMainImage').loading = 'eager';
+  document.getElementById('roomMainImage').decoding = 'async';
 
   document.getElementById('roomMeta').innerHTML =
     '<span>👥 ' + escapeHtml(room.Guests) + '</span>' +
@@ -152,12 +196,13 @@ function renderDetailGallery(room, name) {
   if (!gallery) return;
 
   gallery.innerHTML = '';
-  const images = [room.MainImage].concat(splitGallery(room.GalleryImages));
+  const images = getRoomGalleryImages(room);
 
-  images.filter(Boolean).forEach(function (url) {
+  images.forEach(function (url, index) {
     const card = document.createElement('article');
     card.className = 'card';
-    card.innerHTML = '<img src="' + escapeHtml(url) + '" alt="' + escapeHtml(name) + '">';
+    const loadingMode = index < 2 ? 'eager' : 'lazy';
+    card.innerHTML = '<img src="' + escapeHtml(upgradeImageUrl(url, 1600)) + '" alt="' + escapeHtml(name) + '" loading="' + loadingMode + '" decoding="async">';
     gallery.appendChild(card);
   });
 }
