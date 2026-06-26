@@ -4,74 +4,36 @@ const APARTMENT_I18N = {
     nav_gallery: 'გალერეა',
     nav_booking: 'დაჯავშნა',
     book_btn: 'დაჯავშნა',
-    check_availability: 'შეამოწმე ხელმისაწვდომობა',
+    back_btn: 'უკან დაბრუნება',
     amenities_title: 'კომფორტები',
-    gallery_title: 'ფოტოები',
-    choose_dates: 'აირჩიე თარიღები',
-    choose_dates_text: 'შესვლის და გასვლის თარიღი აუცილებელია.',
-    checking: 'მოწმდება...',
-    checking_text: 'ვუკავშირდებით კალენდარს.',
-    available: 'თავისუფალია ✅',
-    unavailable: 'დაკავებულია ❌',
-    available_text: 'ხელმისაწვდომია {count} ნომერი ამ თარიღებში.',
-    unavailable_text: 'ამ თარიღებში ეს ტიპი დაკავებულია. სცადე სხვა თარიღი.',
-    sending: 'იგზავნება...',
-    success: 'მოთხოვნა მიღებულია. დაჯავშნის ნომერი: ',
-    error: 'დაფიქსირდა შეცდომა.',
-    rooms_title: 'ამ ტიპის ნომრები',
-    no_rooms: 'ამ ტიპზე ნომრები ჯერ დამატებული არ არის.'
+    gallery_title: 'ფოტოები'
   },
   en: {
     nav_rooms: 'Rooms',
     nav_gallery: 'Gallery',
     nav_booking: 'Booking',
     book_btn: 'Book',
-    check_availability: 'Check Availability',
+    back_btn: 'Back',
     amenities_title: 'Amenities',
-    gallery_title: 'Gallery',
-    choose_dates: 'Choose dates',
-    choose_dates_text: 'Check-in and check-out dates are required.',
-    checking: 'Checking...',
-    checking_text: 'Connecting to the calendar.',
-    available: 'Available ✅',
-    unavailable: 'Unavailable ❌',
-    available_text: '{count} room(s) are available for these dates.',
-    unavailable_text: 'This apartment type is unavailable for these dates. Try different dates.',
-    sending: 'Sending...',
-    success: 'Request received. Booking ID: ',
-    error: 'Something went wrong.',
-    rooms_title: 'Rooms in this type',
-    no_rooms: 'No rooms have been added for this type yet.'
+    gallery_title: 'Gallery'
   },
   ru: {
     nav_rooms: 'Номера',
     nav_gallery: 'Галерея',
     nav_booking: 'Бронирование',
     book_btn: 'Забронировать',
-    check_availability: 'Проверить доступность',
+    back_btn: 'Назад',
     amenities_title: 'Удобства',
-    gallery_title: 'Фотографии',
-    choose_dates: 'Выберите даты',
-    choose_dates_text: 'Дата заезда и выезда обязательны.',
-    checking: 'Проверяем...',
-    checking_text: 'Подключаемся к календарю.',
-    available: 'Доступно ✅',
-    unavailable: 'Занято ❌',
-    available_text: 'Доступно номеров: {count} на эти даты.',
-    unavailable_text: 'Этот тип апартамента недоступен на эти даты. Попробуйте другие даты.',
-    sending: 'Отправка...',
-    success: 'Запрос получен. Номер бронирования: ',
-    error: 'Произошла ошибка.',
-    rooms_title: 'Номера этого типа',
-    no_rooms: 'Для этого типа пока не добавлены номера.'
+    gallery_title: 'Фотографии'
   }
 };
 
-const FALLBACK_APARTMENT_IMAGE = 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80';
-
 let CURRENT_LANG = localStorage.getItem('site_lang') || 'ka';
 let CURRENT_ROOM = null;
-let CURRENT_TYPE_ROOMS = [];
+
+function bookingUrl() {
+  return CONFIG.OTELMS_BOOKING_URL || 'https://booking-116144.otelms.com/booking/rooms';
+}
 
 function tr(key) {
   return (APARTMENT_I18N[CURRENT_LANG] && APARTMENT_I18N[CURRENT_LANG][key]) || APARTMENT_I18N.ka[key] || key;
@@ -98,10 +60,7 @@ function escapeHtml(value) {
 }
 
 function splitGallery(value) {
-  return String(value || '')
-    .split(/[\n,;|]+/)
-    .map(function (v) { return v.trim(); })
-    .filter(function (v) { return /^https?:\/\//i.test(v); });
+  return String(value || '').split(',').map(function (v) { return v.trim(); }).filter(Boolean);
 }
 
 function splitAmenities(value) {
@@ -113,18 +72,12 @@ function getLocalizedField(item, baseName) {
   return item[baseName + suffix] || item[baseName] || '';
 }
 
-function getAllImages(room) {
-  const images = [];
-  const mainImage = String(room.MainImage || '').trim();
-
-  if (/^https?:\/\//i.test(mainImage)) images.push(mainImage);
-
-  splitGallery(room.GalleryImages).forEach(function (url) {
-    if (images.indexOf(url) === -1) images.push(url);
+function setBookingLinks() {
+  document.querySelectorAll('a[href="https://booking-116144.otelms.com/booking/rooms"]').forEach(function (link) {
+    link.href = bookingUrl();
+    link.target = '_blank';
+    link.rel = 'noopener';
   });
-
-  if (!images.length) images.push(FALLBACK_APARTMENT_IMAGE);
-  return images;
 }
 
 function setLanguage(lang) {
@@ -141,7 +94,6 @@ function setLanguage(lang) {
   });
 
   if (CURRENT_ROOM) renderRoom(CURRENT_ROOM);
-  if (CURRENT_TYPE_ROOMS.length) renderTypeRooms(CURRENT_TYPE_ROOMS);
 }
 
 function initLanguageSwitcher() {
@@ -157,16 +109,11 @@ async function loadApartment() {
   const savedTheme = localStorage.getItem('theme') || CONFIG.DEFAULT_THEME;
   setTheme(savedTheme);
   initLanguageSwitcher();
+  setBookingLinks();
 
   const roomTypeId = qs('id') || 'TYPE-A';
-
-  const [roomTypesRes, roomsRes] = await Promise.all([
-    apiGet('roomTypes'),
-    apiGet('rooms')
-  ]);
-
-  const items = roomTypesRes.data || [];
-  const rooms = roomsRes.data || [];
+  const response = await apiGet('roomTypes');
+  const items = response.data || [];
   const room = items.find(function (item) {
     return String(item.TypeID) === String(roomTypeId);
   });
@@ -174,14 +121,7 @@ async function loadApartment() {
   if (!room) return;
 
   CURRENT_ROOM = room;
-  CURRENT_TYPE_ROOMS = rooms.filter(function (item) {
-    return String(item.TypeID) === String(roomTypeId) && String(item.Status || 'Active') === 'Active';
-  });
-
   renderRoom(room);
-  renderTypeRooms(CURRENT_TYPE_ROOMS);
-  setupBookingForm(room.TypeID);
-  setupAvailabilityCheck(room.TypeID);
 }
 
 function renderRoom(room) {
@@ -190,89 +130,35 @@ function renderRoom(room) {
   const fullDescription = getLocalizedField(room, 'FullDescription');
   const shortDescription = getLocalizedField(room, 'ShortDescription');
   const amenities = getLocalizedField(room, 'Amenities');
-  const images = getAllImages(room);
 
   document.title = name + ' — Mamu Luxury Apartments';
   document.getElementById('roomCategory').textContent = category;
   document.getElementById('roomName').textContent = name;
   document.getElementById('roomDescription').textContent = fullDescription || shortDescription || '';
-  document.getElementById('roomMainImage').src = images[0];
-  document.getElementById('roomMainImage').onerror = function () {
-    this.onerror = null;
-    this.src = FALLBACK_APARTMENT_IMAGE;
-  };
-  document.getElementById('detailRoomTypeId').value = room.TypeID;
+  document.getElementById('roomMainImage').src = room.MainImage || document.getElementById('roomMainImage').src;
+
   document.getElementById('roomMeta').innerHTML =
     '<span>👥 ' + escapeHtml(room.Guests) + '</span>' +
     '<span>🛏️ ' + escapeHtml(room.Bedrooms) + '</span>' +
     '<span>🛁 ' + escapeHtml(room.Bathrooms) + '</span>' +
-    '<span>📐 ' + escapeHtml(room.Area) + '</span>' +
-    '<span>💎 ₾' + escapeHtml(room.Price) + '</span>';
+    '<span>📐 ' + escapeHtml(room.Area) + '</span>';
 
   renderAmenities(amenities);
-  renderImageGallery(images, name);
+  renderDetailGallery(room, name);
 }
 
-function renderImageGallery(images, name) {
+function renderDetailGallery(room, name) {
   const gallery = document.getElementById('detailGallery');
   if (!gallery) return;
 
   gallery.innerHTML = '';
+  const images = [room.MainImage].concat(splitGallery(room.GalleryImages));
 
-  images.forEach(function (url, index) {
+  images.filter(Boolean).forEach(function (url) {
     const card = document.createElement('article');
     card.className = 'card';
-    card.innerHTML = '<img src="' + escapeHtml(url) + '" alt="' + escapeHtml(name) + '" loading="lazy" onerror="this.onerror=null;this.src=\'' + FALLBACK_APARTMENT_IMAGE + '\';">';
-    card.addEventListener('click', function () {
-      document.getElementById('roomMainImage').src = url;
-      document.getElementById('roomMainImage').scrollIntoView({ behavior: 'smooth', block: 'center' });
-    });
+    card.innerHTML = '<img src="' + escapeHtml(url) + '" alt="' + escapeHtml(name) + '">';
     gallery.appendChild(card);
-  });
-}
-
-function renderTypeRooms(rooms) {
-  let section = document.getElementById('typeRoomsSection');
-
-  if (!section) {
-    const gallerySection = document.getElementById('detailGallery').closest('.section');
-    section = document.createElement('section');
-    section.className = 'section';
-    section.id = 'typeRoomsSection';
-    section.innerHTML =
-      '<div class="section-head">' +
-        '<span class="eyebrow">Rooms</span>' +
-        '<h2 class="section-title" id="typeRoomsTitle"></h2>' +
-      '</div>' +
-      '<div class="grid" id="typeRoomsGrid"></div>';
-    gallerySection.parentNode.insertBefore(section, gallerySection.nextSibling);
-  }
-
-  const title = document.getElementById('typeRoomsTitle');
-  const grid = document.getElementById('typeRoomsGrid');
-  if (!title || !grid) return;
-
-  title.textContent = tr('rooms_title');
-  grid.innerHTML = '';
-
-  if (!rooms.length) {
-    grid.innerHTML = '<div class="empty-state">' + tr('no_rooms') + '</div>';
-    return;
-  }
-
-  rooms.forEach(function (room) {
-    const card = document.createElement('article');
-    card.className = 'card';
-    card.innerHTML =
-      '<div class="card-content">' +
-        '<h3>№ ' + escapeHtml(room.RoomNumber) + '</h3>' +
-        '<p>' + escapeHtml(room.Note || '') + '</p>' +
-        '<div class="meta">' +
-          '<span>🏢 ' + escapeHtml(room.Floor) + '</span>' +
-          '<span>✅ ' + escapeHtml(room.Status) + '</span>' +
-        '</div>' +
-      '</div>';
-    grid.appendChild(card);
   });
 }
 
@@ -296,69 +182,6 @@ function renderAmenities(value) {
     badge.className = 'meta';
     badge.innerHTML = '<span>✨ ' + escapeHtml(item) + '</span>';
     grid.appendChild(badge);
-  });
-}
-
-function setupAvailabilityCheck(roomTypeId) {
-  const button = document.getElementById('checkAvailabilityBtn');
-  const box = document.getElementById('availabilityBox');
-  const checkin = document.getElementById('detailCheckin');
-  const checkout = document.getElementById('detailCheckout');
-
-  if (!button || !box || !checkin || !checkout) return;
-
-  button.textContent = tr('check_availability');
-
-  button.addEventListener('click', async function () {
-    if (!checkin.value || !checkout.value) {
-      box.innerHTML = '<strong>' + tr('choose_dates') + '</strong><span>' + tr('choose_dates_text') + '</span>';
-      box.className = 'calendar-preview warning';
-      return;
-    }
-
-    box.innerHTML = '<strong>' + tr('checking') + '</strong><span>' + tr('checking_text') + '</span>';
-    box.className = 'calendar-preview';
-
-    const result = await apiGet('availability', {
-      roomTypeId: roomTypeId,
-      checkin: checkin.value,
-      checkout: checkout.value
-    });
-
-    if (result.success && result.available) {
-      box.innerHTML = '<strong>' + tr('available') + '</strong><span>' + tr('available_text').replace('{count}', result.count) + '</span>';
-      box.className = 'calendar-preview available';
-    } else {
-      box.innerHTML = '<strong>' + tr('unavailable') + '</strong><span>' + tr('unavailable_text') + '</span>';
-      box.className = 'calendar-preview unavailable';
-    }
-  });
-}
-
-function setupBookingForm(roomTypeId) {
-  const form = document.getElementById('detailBookingForm');
-  const status = document.getElementById('detailBookingStatus');
-  if (!form || form.dataset.ready === 'true') return;
-
-  form.dataset.ready = 'true';
-
-  form.addEventListener('submit', async function (e) {
-    e.preventDefault();
-    status.textContent = tr('sending');
-
-    const data = Object.fromEntries(new FormData(form).entries());
-    data.roomTypeId = roomTypeId;
-    data.language = CURRENT_LANG;
-
-    const result = await apiPost('createBooking', data);
-
-    if (result.success) {
-      status.textContent = tr('success') + result.bookingId;
-      form.reset();
-      document.getElementById('detailRoomTypeId').value = roomTypeId;
-    } else {
-      status.textContent = result.error || tr('error');
-    }
   });
 }
 
