@@ -4,6 +4,7 @@ const I18N = {
     nav_gallery: 'გალერეა',
     nav_videos: 'ვიდეო',
     nav_booking: 'დაჯავშნა',
+    hero_welcome: 'მოგესალმებათ მამუ აპარტამენტი',
     hero_rooms_btn: 'აპარტამენტების ნახვა',
     hero_booking_btn: 'დაჯავშნა',
     rooms_title: 'აპარტამენტების ტიპები',
@@ -20,6 +21,7 @@ const I18N = {
     nav_gallery: 'Gallery',
     nav_videos: 'Videos',
     nav_booking: 'Booking',
+    hero_welcome: 'Welcome to Mamu Apartment',
     hero_rooms_btn: 'View Apartments',
     hero_booking_btn: 'Book Now',
     rooms_title: 'Apartment Types',
@@ -36,6 +38,7 @@ const I18N = {
     nav_gallery: 'Галерея',
     nav_videos: 'Видео',
     nav_booking: 'Бронирование',
+    hero_welcome: 'Вас приветствует Mamu Apartment',
     hero_rooms_btn: 'Смотреть апартаменты',
     hero_booking_btn: 'Забронировать',
     rooms_title: 'Типы апартаментов',
@@ -151,7 +154,9 @@ function renderSettings(settings) {
   document.title = settings.site_title || 'Mamu Luxury Apartments';
   document.getElementById('siteTitle').textContent = settings.site_title || 'Mamu Luxury Apartments';
   document.getElementById('heroTitle').textContent = settings.hero_title || 'Mamu Luxury Apartments';
-  document.getElementById('heroSubtitle').textContent = settings.hero_subtitle || '';
+
+  const heroSubtitle = document.getElementById('heroSubtitle');
+  if (heroSubtitle) heroSubtitle.textContent = '';
 
   if (settings.main_hero_image) {
     document.documentElement.style.setProperty('--hero-image', 'url("' + settings.main_hero_image + '")');
