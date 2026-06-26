@@ -112,6 +112,20 @@ function safeText(value) {
   });
 }
 
+function upgradeImageUrl(url, width) {
+  const value = String(url || '').trim();
+  if (!value) return '';
+  const targetWidth = width || 1600;
+
+  if (value.indexOf('googleusercontent.com') !== -1) {
+    if (/=s\d+[^/]*$/i.test(value)) return value.replace(/=s\d+[^/]*$/i, '=s' + targetWidth);
+    if (/=w\d+[^/]*$/i.test(value)) return value.replace(/=w\d+[^/]*$/i, '=w' + targetWidth);
+    if (/-w\d+-h\d+/i.test(value)) return value.replace(/-w\d+-h\d+/i, '-w' + targetWidth + '-h' + Math.round(targetWidth * 0.75));
+  }
+
+  return value;
+}
+
 function getYouTubeEmbedUrl(url) {
   const text = String(url || '');
   const match = text.match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
@@ -164,7 +178,7 @@ function renderSettings(settings) {
   if (heroSubtitle) heroSubtitle.textContent = '';
 
   if (settings.main_hero_image) {
-    document.documentElement.style.setProperty('--hero-image', 'url("' + settings.main_hero_image + '")');
+    document.documentElement.style.setProperty('--hero-image', 'url("' + upgradeImageUrl(settings.main_hero_image, 1920) + '")');
   }
 
   const phone = settings.phone || '';
@@ -196,17 +210,18 @@ function renderRoomTypes(items) {
 
   container.innerHTML = '';
 
-  items.forEach(function (item) {
+  items.forEach(function (item, index) {
     const article = document.createElement('article');
     article.className = 'card';
 
-    const image = item.MainImage || 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80';
+    const image = upgradeImageUrl(item.MainImage || 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80', 1200);
     const detailUrl = 'apartment.html?id=' + encodeURIComponent(item.TypeID);
     const name = getLocalizedField(item, 'Name');
     const shortDescription = getLocalizedField(item, 'ShortDescription');
+    const loadingMode = index < 3 ? 'eager' : 'lazy';
 
     article.innerHTML =
-      '<img src="' + safeText(image) + '" alt="' + safeText(name) + '">' +
+      '<img src="' + safeText(image) + '" alt="' + safeText(name) + '" loading="' + loadingMode + '" decoding="async">' +
       '<div class="card-content">' +
         '<h3>' + safeText(name) + '</h3>' +
         '<p>' + safeText(shortDescription) + '</p>' +
@@ -230,11 +245,11 @@ function renderGallery(items) {
   if (!container) return;
   container.innerHTML = '';
 
-  items.slice(0, 12).forEach(function (item) {
+  items.forEach(function (item) {
     if (!item.ImageUrl) return;
     const card = document.createElement('article');
     card.className = 'card';
-    card.innerHTML = '<img src="' + safeText(item.ImageUrl) + '" alt="' + safeText(item.Title) + '">';
+    card.innerHTML = '<img src="' + safeText(upgradeImageUrl(item.ImageUrl, 1200)) + '" alt="' + safeText(item.Title) + '" loading="lazy" decoding="async">';
     container.appendChild(card);
   });
 }
@@ -249,7 +264,7 @@ function renderVideos(items) {
     if (!embedUrl) return;
     const card = document.createElement('article');
     card.className = 'card video-card';
-    card.innerHTML = '<iframe src="' + embedUrl + '" title="' + safeText(item.Title) + '" allowfullscreen></iframe>';
+    card.innerHTML = '<iframe src="' + embedUrl + '" title="' + safeText(item.Title) + '" loading="lazy" allowfullscreen></iframe>';
     container.appendChild(card);
   });
 }
